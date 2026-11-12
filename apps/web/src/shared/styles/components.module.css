@@ -60,3 +60,90 @@
   .staff-page-heading { align-items: flex-start; }.staff-page-heading h1 { font-size: 25px; }.staff-toolbar { align-items: stretch; flex-direction: column; }.staff-toolbar > .button { width: 100%; }.court-available-body .button { padding: 0 9px; }.share-card { grid-row: auto; }.create-session-actions { align-items: flex-start; flex-direction: column; gap: 10px; }.create-session-actions .button { width: 100%; }
   .staff-login-wrap { width: calc(100% - 28px); }.staff-login-card { padding: 23px; }.reason-modal { padding: 23px 19px; }
 }
+
+/* Shared court-side UI primitives */
+.page-container { width: min(100% - 40px, 1280px); margin-inline: auto; }
+.page-container-narrow { max-width: 560px; }
+.page-container-standard { max-width: 1120px; }
+.page-container-wide { max-width: 1280px; }
+
+.ui-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 18px; border: 1px solid transparent; border-radius: 6px; font-size: 13px; font-weight: 650; letter-spacing: -.01em; line-height: 1; white-space: nowrap; cursor: pointer; transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease, box-shadow var(--motion-fast) ease; }
+.ui-button:hover:not(:disabled) { transform: translateY(-2px); }
+.ui-button:active:not(:disabled) { transform: translateY(0) scale(.98); }
+.ui-button:disabled { opacity: .48; cursor: not-allowed; }
+.ui-button-sm { min-height: 36px; padding-inline: 13px; font-size: 12px; }
+.ui-button-md { min-height: 44px; }
+.ui-button-lg { min-height: 52px; padding-inline: 22px; font-size: 14px; }
+.ui-button-primary { color: #fffdf8; background: var(--accent); box-shadow: 0 4px 0 #b94127; }
+.ui-button-primary:hover:not(:disabled) { background: #d95130; box-shadow: 0 6px 0 #b94127; }
+.ui-button-secondary { color: #fffdf8; background: var(--green); box-shadow: 0 4px 0 var(--green-deep); }
+.ui-button-secondary:hover:not(:disabled) { background: #22553d; }
+.ui-button-quiet { color: var(--ink); background: transparent; border-color: var(--line); }
+.ui-button-quiet:hover:not(:disabled) { border-color: var(--ink); background: rgba(255,255,255,.55); }
+.ui-button-danger { color: #fff; background: #a53c2c; }
+.ui-button-danger:hover:not(:disabled) { background: #8f3024; }
+
+.ui-card { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.ui-card-default { box-shadow: none; }
+.ui-card-raised { box-shadow: var(--shadow-raised); }
+.ui-card-inverse { color: var(--paper); border-color: var(--green); background: var(--green); }
+
+.status-pill { min-height: 25px; display: inline-flex; align-items: center; gap: 8px; padding: 4px 9px; border: 1px solid transparent; border-radius: 99px; font-size: 10px; font-weight: 650; letter-spacing: .035em; white-space: nowrap; }
+.status-pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status-pill-live { color: #215a3c; border-color: #b9d4bd; background: #e7f1e4; }
+.status-pill-live i { box-shadow: 0 0 0 3px rgba(40,98,71,.14); }
+.status-pill-info { color: #495c53; border-color: #d7ddd2; background: #f0eee5; }
+.status-pill-warning { color: #9a492e; border-color: #e9c0ae; background: #fae9df; }
+
+@keyframes ui-dialog-in {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ui-dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; overflow-y: auto; padding: 24px; background: rgba(17,35,30,.68); backdrop-filter: blur(5px); animation: ui-backdrop-in 160ms ease-out both; }
+@keyframes ui-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.ui-dialog { width: min(100%, 520px); max-height: min(90vh, 900px); overflow-y: auto; outline: none; border: 1px solid rgba(255,255,255,.28); border-radius: 11px; background: var(--paper); box-shadow: var(--shadow-dialog); animation: ui-dialog-in 220ms var(--ease-out) both; }
+.ui-dialog-sm { width: min(100%, 440px); }
+.ui-dialog-md { width: min(100%, 560px); }
+
+.site-header { width: min(100% - 48px, 1280px); height: 78px; border-color: rgba(27,41,37,.2); }
+.brand { gap: 11px; font-family: var(--display); font-size: 25px; font-weight: 700; letter-spacing: .1px; text-transform: uppercase; }
+.brand-name span { color: var(--accent); }
+.brand-mark { width: 34px; height: 34px; border-radius: 4px; background: var(--green); }
+.brand-mark::before, .brand-mark::after, .brand-mark span { border-color: #f3d76b; }
+.site-nav { gap: 28px; color: var(--ink); font-size: 12px; font-weight: 650; }
+.site-nav .nav-staff { color: var(--accent); }
+.nav-live-dot, .live-label i { background: var(--accent); box-shadow: 0 0 0 3px rgba(228,93,59,.14); }
+.button, .icon-button { border-radius: 6px; }
+.button-primary { color: #fffdf8; background: var(--accent); box-shadow: 0 3px 0 #b94127; }
+.button-primary:hover:not(:disabled) { background: #d95130; box-shadow: 0 5px 0 #b94127; }
+.button-dark { background: var(--green); }
+.button-dark:hover:not(:disabled) { background: var(--green-deep); }
+.button-outline { color: var(--ink); border-color: #bfc9bd; }
+.button-outline:hover:not(:disabled) { border-color: var(--green); background: #f0eee5; }
+.eyebrow { color: #66766b; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: .11em; }
+.live-label { color: #215a3c; font-family: var(--body); font-size: 10px; letter-spacing: .06em; }
+.site-footer, .queue-footer { border-color: var(--line); }
+.site-footer .brand { width: max-content; gap: 9px; font-size: 16px; }
+.site-footer .brand-mark { width: 28px; height: 28px; border-radius: 4px; }
+.site-footer .brand-mark::before,
+.site-footer .brand-mark::after,
+.site-footer .brand-mark span { height: 16px; }
+.site-footer .brand-mark::before { left: 6px; }
+.site-footer .brand-mark::after { right: 6px; }
+
+@media (max-width: 480px) {
+  .site-footer .brand { gap: 7px; font-size: 14px; }
+  .site-footer .brand-mark { width: 24px; height: 24px; }
+  .site-footer .brand-mark::before,
+  .site-footer .brand-mark::after,
+  .site-footer .brand-mark span { height: 14px; }
+  .site-footer .brand-mark::before { left: 5px; }
+  .site-footer .brand-mark::after { right: 5px; }
+}
+
+@media (max-width: 760px) {
+  .page-container { width: min(100% - 32px, 560px); }
+  .site-header { width: min(100% - 32px, 560px); }
+  .ui-dialog-backdrop { align-items: end; padding: 0; }
+  .ui-dialog, .ui-dialog-sm, .ui-dialog-md { width: 100%; max-height: min(92vh, 900px); border-radius: 14px 14px 0 0; }
+}

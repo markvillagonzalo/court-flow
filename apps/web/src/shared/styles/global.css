@@ -1,28 +1,56 @@
 :root {
-  font-family: 'DM Sans', 'Segoe UI', sans-serif;
-  color: #173b35;
-  background: #f7f7f2;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #1b2925;
+  background: #f4f1e8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #173b35;
-  --ink-deep: #102b26;
-  --muted: #73847e;
-  --line: #e7e9e2;
-  --paper: #fffefa;
-  --canvas: #f7f7f2;
-  --lime: #d9f36a;
-  --green: #4d8c64;
-  --mono: 'DM Mono', Consolas, monospace;
-  --display: 'Manrope', 'Segoe UI', sans-serif;
+  -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
+  --ink: #1b2925;
+  --ink-deep: #11231e;
+  --muted: #69766f;
+  --line: #d8ddd3;
+  --paper: #fffdf8;
+  --surface-2: #ece9df;
+  --canvas: #f4f1e8;
+  --accent: #e45d3b;
+  --lime: var(--accent);
+  --green: #286247;
+  --green-deep: #1d4b37;
+  --mono: 'Inter', 'Segoe UI', sans-serif;
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --body: 'Inter', 'Segoe UI', sans-serif;
+  --shadow-raised: 0 16px 38px rgba(27, 41, 37, .1);
+  --shadow-dialog: 0 28px 90px rgba(15, 34, 27, .3);
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+  --ease-out: cubic-bezier(.2, .75, .25, 1);
 }
 
 * { box-sizing: border-box; }
 html { min-width: 320px; scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--canvas); }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 a { color: inherit; text-decoration: none; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #a9ce31; outline-offset: 3px; }@keyframes spin { to { transform: rotate(360deg); } }
+input, select, textarea { color: var(--ink); border-color: #bdc8bc; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+::selection { color: var(--paper); background: var(--green); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

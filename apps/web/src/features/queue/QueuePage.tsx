@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Radio } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { PublicSnapshot } from '@court-flow/contracts';
 import { getPlayerToken } from '../../shared/api/client';
 import { Brand, SiteHeader } from '../../shared/components/Navigation';
@@ -14,6 +14,7 @@ import { MyTurnCard } from './components/MyTurnCard';
 import { QueueActivityCard } from './components/QueueActivityCard';
 import { QueueSidebar } from './components/QueueSidebar';
 import { WaitingQueueCard } from './components/WaitingQueueCard';
+import { PageContainer, StatusPill } from '../../shared/components/Ui';
 
 export function QueuePage() {
   const { code = 'demo' } = useParams();
@@ -75,7 +76,7 @@ export function QueuePage() {
   return (
     <main className={cx('queue-page', queueStyles, sharedStyles)}>
       <SiteHeader subtle />
-      <div className={cx('queue-page-shell', queueStyles, sharedStyles)}>
+      <PageContainer width="standard" className={cx('queue-page-shell', queueStyles, sharedStyles)}>
         <Link to="/" className={cx('back-link', queueStyles, sharedStyles)}><ArrowLeft size={16} /> Back to CourtFlow</Link>
         {loading ? <LoadingCard label="Opening the live queue…" /> : error && !snapshot ? <ErrorPanel error={error} onRetry={() => void refresh()} /> : snapshot ? (
           <>
@@ -88,9 +89,9 @@ export function QueuePage() {
                 <h1>{snapshot.session.name}</h1>
                 <p>Every turn is visible. Every player gets a fair place.</p>
               </div>
-              <div className={cx(`connection-pill ${connected ? 'is-connected' : ''}`, queueStyles, sharedStyles)}>
-                <Radio size={15} /><span>{connected ? 'Live updates on' : 'Reconnecting'}</span>
-              </div>
+              <StatusPill tone={connected ? 'live' : 'warning'} className={cx('connection-pill', queueStyles, sharedStyles)}>
+                {connected ? 'Live updates on' : 'Reconnecting'}
+              </StatusPill>
             </div>
             <div className={cx('queue-layout', queueStyles, sharedStyles)}>
               <section className={cx('queue-main-column', queueStyles, sharedStyles)}>
@@ -116,7 +117,7 @@ export function QueuePage() {
             <footer className={cx('queue-footer', queueStyles, sharedStyles)}><Brand /><span>Good flow, better play.</span><span>Session {snapshot.session.publicCode}</span></footer>
           </>
         ) : <ErrorPanel error={error || 'Queue not found.'} onRetry={() => void refresh()} />}
-      </div>
+      </PageContainer>
     </main>
   );
 }

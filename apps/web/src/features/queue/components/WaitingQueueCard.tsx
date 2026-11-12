@@ -4,6 +4,7 @@ import { cx } from '../../../shared/lib/classNames';
 import sharedStyles from '../../../shared/styles/components.module.css';
 import { formatSince, initials } from '../../../shared/lib/formatters';
 import queueStyles from '../queue.module.css';
+import { Button, Card } from '../../../shared/components/Ui';
 
 type WaitingQueueCardProps = {
   entries: PublicQueueEntry[];
@@ -17,11 +18,11 @@ export function WaitingQueueCard({ entries, waitingCount, refreshing, onRefresh 
     <>
       <div className={cx('queue-section-head', queueStyles, sharedStyles)}>
         <div><div className={cx('eyebrow', queueStyles, sharedStyles)}>THE LINE</div><h2>Waiting players <span className={cx('count-bubble', queueStyles, sharedStyles)}>{waitingCount}</span></h2></div>
-        <button className={cx('icon-button', queueStyles, sharedStyles)} onClick={onRefresh} aria-label="Refresh queue" title="Refresh queue">
+        <Button variant="quiet" size="sm" className={cx('refresh-button', queueStyles, sharedStyles)} onClick={onRefresh} aria-label="Refresh queue" title="Refresh queue">
           {refreshing ? <LoaderCircle size={18} className={cx('spin', queueStyles, sharedStyles)} /> : <RefreshCw size={17} />}
-        </button>
+        </Button>
       </div>
-      <div className={cx('queue-list-card', queueStyles, sharedStyles)}>
+      <Card className={cx('queue-list-card', queueStyles, sharedStyles)}>
         {entries.length ? entries.map((entry) => (
           <div className={cx(`public-queue-row ${entry.position === 1 ? 'public-next-row' : ''}`, queueStyles, sharedStyles)} key={`${entry.position}-${entry.displayName}`}>
             <div className={cx('queue-position', queueStyles, sharedStyles)}>{entry.position === 1 ? <span className={cx('next-star', queueStyles, sharedStyles)}>✦</span> : String(entry.position).padStart(2, '0')}</div>
@@ -36,7 +37,7 @@ export function WaitingQueueCard({ entries, waitingCount, refreshing, onRefresh 
           </div>
         )}
         <div className={cx('fifo-note', queueStyles, sharedStyles)}><ShieldCheck size={15} /><span><b>First in, first up.</b> Queue positions follow check-in time. Staff changes are always explained.</span></div>
-      </div>
+      </Card>
     </>
   );
 }

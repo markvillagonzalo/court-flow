@@ -4,6 +4,7 @@ import { cx } from '../../../shared/lib/classNames';
 import { formatTime } from '../../../shared/lib/formatters';
 import sharedStyles from '../../../shared/styles/components.module.css';
 import staffStyles from '../staff.module.css';
+import { Button, Card } from '../../../shared/components/Ui';
 
 type Props = {
   court: Court;
@@ -29,19 +30,21 @@ export function StaffCourtCard({
   const canStart = waitingCount >= playersPerGame;
 
   return (
-    <article className={cx(`staff-court-card ${court.state === 'playing' ? 'court-playing' : ''}`, staffStyles, sharedStyles)}>
+    <Card as="article" className={cx(`staff-court-card ${court.state === 'playing' ? 'court-playing' : ''}`, staffStyles, sharedStyles)}>
       <div className={cx('staff-court-top', staffStyles, sharedStyles)}>
         <div className={cx('court-title', staffStyles, sharedStyles)}>
           <span className={cx(`court-status-mark ${court.state === 'playing' ? 'is-playing' : ''}`, staffStyles, sharedStyles)} />
           <div>
             <h3>{court.label}</h3>
-            <span>{court.state === 'playing' ? 'GAME IN PROGRESS' : 'READY FOR A GAME'}</span>
+            <span className={cx(`court-state-label ${court.state === 'playing' ? 'court-state-playing' : 'court-state-available'}`, staffStyles, sharedStyles)}>
+              {court.state === 'playing' ? 'Now playing' : 'Court available'}
+            </span>
           </div>
         </div>
         {court.state === 'available' && (
-          <button className={cx('icon-button court-remove-button', staffStyles, sharedStyles)} title="Remove court" aria-label={`Remove ${court.label}`} onClick={onRemove}>
+          <Button type="button" variant="quiet" size="sm" className={cx('icon-button court-remove-button', staffStyles, sharedStyles)} title="Remove court" aria-label={`Remove ${court.label}`} onClick={onRemove}>
             <X size={16} />
-          </button>
+          </Button>
         )}
       </div>
       {match ? (
@@ -51,23 +54,30 @@ export function StaffCourtCard({
           </div>
           <div className={cx('court-match-footer', staffStyles, sharedStyles)}>
             <span><Clock3 size={14} /> Started {formatTime(match.startedAt)}</span>
-            <button className={cx('button button-dark button-small', staffStyles, sharedStyles)} onClick={() => onFinish(match)} disabled={busy}>
+            <Button variant="secondary" size="sm" className={cx('button-small', staffStyles, sharedStyles)} onClick={() => onFinish(match)} disabled={busy}>
               Finish game <Check size={15} />
-            </button>
+            </Button>
           </div>
         </>
       ) : (
         <div className={cx('court-available-body', staffStyles, sharedStyles)}>
           <div className={cx('court-outline', staffStyles, sharedStyles)}><span /><i /><b /></div>
-          <div>
+          <div className={cx('court-readiness-copy', staffStyles, sharedStyles)}>
             <strong>{canStart ? `${playersPerGame} players are ready` : 'Waiting for players'}</strong>
-            <span>{canStart ? 'The next group follows FIFO order.' : `Need ${playersPerGame - waitingCount} more to fill a game.`}</span>
+            {canStart ? (
+              <span className={cx('court-readiness-detail', staffStyles, sharedStyles)}>The next group follows FIFO order.</span>
+            ) : (
+              <div className={cx('court-readiness-need', staffStyles, sharedStyles)}>
+                <b>{playersPerGame - waitingCount} more needed</b>
+                <span>to fill this game</span>
+              </div>
+            )}
           </div>
-          <button className={cx('button button-primary button-small', staffStyles, sharedStyles)} onClick={onCallNext} disabled={!canStart || busy}>
+          <Button size="sm" className={cx('button-small', staffStyles, sharedStyles)} onClick={onCallNext} disabled={!canStart || busy}>
             Call next <ArrowRight size={15} />
-          </button>
+          </Button>
         </div>
       )}
-    </article>
+    </Card>
   );
 }

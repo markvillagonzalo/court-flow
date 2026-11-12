@@ -24,3 +24,109 @@
 @media (max-width: 480px) {
   .queue-page-shell { width: calc(100% - 28px); }.connection-pill { margin: 12px 0 0; display: inline-flex; font-size: 9px; }.position-number { font-size: 43px; }.position-text { font-size: 22px; }.queue-side-column { grid-template-columns: 1fr; }.now-playing-card, .session-code-card { grid-column: auto; }.activity-lock { font-size: 0; }.activity-lock svg { width: 17px; height: 17px; }
 }
+
+/* Court-side editorial queue */
+.queue-page { background: var(--canvas); }
+.queue-page-shell { width: min(100% - 48px, 1160px); padding-top: 24px; }
+.queue-page-shell > .back-link { color: #526159; font-size: 12px; }
+.queue-title-row { align-items: end; margin: 28px 0 24px; }
+.queue-title-row .eyebrow { gap: 10px; color: #58675f; font-size: 10px; }
+.queue-title-row h1 { margin: 12px 0 7px; color: var(--ink); font-family: var(--display); font-size: clamp(40px, 5vw, 58px); font-weight: 700; letter-spacing: -.015em; line-height: .95; text-transform: uppercase; }
+.queue-title-row p { color: #606d65; font-size: 13px; }
+.queue-layout { grid-template-columns: minmax(0, 1.75fr) minmax(295px, .8fr); gap: 24px; }
+.my-turn-card { min-height: 205px; padding: 28px 30px; border: 0; border-left: 7px solid var(--accent); border-radius: 5px; background: var(--green); box-shadow: 8px 8px 0 rgba(27,41,37,.08); }
+.my-turn-card::after { right: 23%; top: -125px; border-color: rgba(255,255,255,.2); box-shadow: 0 0 0 25px rgba(255,255,255,.055), 0 0 0 51px rgba(255,255,255,.035); }
+.my-turn-copy .card-overline { color: #e2e9db; font-family: var(--body); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.my-turn-copy h2 { margin: 9px 0 6px; font-family: var(--display); font-size: 32px; letter-spacing: 0; text-transform: uppercase; }
+.position-number { color: #f3d76b; font-family: var(--display); font-size: 74px; letter-spacing: -.02em; }
+.position-text { font-size: 30px; }
+.my-turn-copy p { max-width: 440px; color: #e2e8df; font-size: 13px; }
+.turn-action { width: min(330px, 44%); }
+.inline-join-form label { color: #f4f1e8; font-size: 12px; }
+.inline-join-control { padding: 5px; border-radius: 4px; }
+.inline-join-control input { padding-inline: 10px; font-size: 14px; }
+.leave-button { color: var(--ink); border-color: rgba(255,255,255,.58); background: var(--paper); }
+.queue-section-head, .staff-section-head { margin: 31px 0 13px; }
+.queue-section-head h2, .staff-section-head h2 { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: .005em; text-transform: uppercase; }
+.queue-list-card { padding: 0 20px; border-radius: 5px; background: var(--paper); box-shadow: none; }
+.public-queue-row { min-height: 69px; gap: 14px; border-color: #e4e5dc; animation: queue-row-in 240ms var(--ease-out) both; }
+.public-next-row { position: relative; background: #f5f0e6; }
+.public-next-row::before { position: absolute; top: 0; bottom: 0; left: -20px; width: 3px; background: var(--accent); content: ''; }
+.queue-position { color: #66736c; font-family: var(--display); font-size: 19px; }
+.public-next-row .queue-position { color: var(--accent); font-size: 24px; }
+.public-player-name strong { color: var(--ink); font-size: 14px; font-weight: 650; }
+.public-player-name span { color: #6d7971; font-size: 11px; }
+.player-avatar { width: 36px; height: 36px; color: var(--ink); background: #e9d481; font-size: 10px; }
+.avatar-3 { color: #254932; background: #c6d7c5; }
+.avatar-4 { color: #36576b; background: #cbdde0; }
+.avatar-5 { color: #7a3e2b; background: #f0c8b7; }
+.next-chip { padding: 6px 9px; border-radius: 3px; color: #fff; background: var(--accent); font-size: 9px; font-weight: 700; }
+.count-bubble { min-width: 25px; height: 25px; border-radius: 3px; color: white; background: var(--green); font-size: 12px; }
+.refresh-button { width: 38px; min-width: 38px; padding: 0; }
+.fifo-note { min-height: 54px; color: #57665e; font-size: 11px; }
+.fifo-note svg { color: var(--green); }
+.fifo-note b { color: var(--ink); }
+.activity-card, .now-playing-card { border-radius: 5px; border-color: var(--line); background: var(--paper); box-shadow: none; }
+.activity-card { padding: 20px; }
+.activity-heading h3, .side-card-heading h2 { font-family: var(--display); font-size: 23px; font-weight: 700; letter-spacing: .005em; text-transform: uppercase; }
+.activity-lock { color: var(--green); font-size: 10px; }
+.activity-row { min-height: 48px; border-color: #e4e5dc; }
+.activity-row strong { color: #394c42; font-size: 12px; }
+.activity-reason { color: #785342; font-size: 11px; }
+.activity-row time { color: #707d75; font-size: 10px; }
+.activity-dot, .court-dot { background: var(--accent); }
+.now-playing-card { padding: 20px 18px 0; }
+.active-court-card { border-color: #d8ddd3; border-radius: 4px; background: #f5f3eb; }
+.active-court-top { color: var(--ink); font-size: 12px; }
+.active-court-top time { color: #68766e; font-size: 10px; }
+.match-name-grid > span { color: #56645c; font-size: 11px; }
+.match-avatar { width: 26px; height: 26px; color: var(--ink); background: #e6d88f; font-size: 9px; }
+.courts-empty { min-height: 150px; }
+.courts-empty strong { color: var(--ink); font-size: 12px; }
+.courts-empty > span { color: #68766e; font-size: 11px; }
+.court-mini-mark { border-radius: 4px; background: #e8eee4; }
+.court-mini-mark::before, .court-mini-mark::after { border-color: var(--green); }
+.court-mini-mark span { border-color: var(--green); }
+.court-count-line { color: #66736c; font-size: 11px; }
+.court-count-line span:last-child { color: var(--green); }
+.explain-card { align-items: flex-start; border-left: 3px solid var(--accent); border-radius: 4px; background: #ece9df; }
+.explain-icon { border-radius: 3px; color: var(--accent); background: var(--paper); }
+.explain-card strong { color: var(--ink); font-family: var(--body); font-size: 12px; }
+.explain-card p { color: #59675f; font-size: 11px; }
+.session-code-card { border-radius: 4px; border-color: var(--line); background: var(--paper); }
+.code-mark { border-radius: 3px; color: white; background: var(--green); }
+.session-code-card span { color: #6b786f; font-size: 9px; font-weight: 700; }
+.session-code-card strong { color: var(--ink); font-size: 14px; }
+.queue-footer { color: #68766e; font-size: 10px; }
+
+@keyframes queue-row-in { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 760px) {
+  .queue-page-shell { width: min(100% - 32px, 560px); padding-top: 14px; }
+  .queue-title-row { align-items: flex-start; margin: 24px 0 20px; }
+  .queue-title-row h1 { font-size: 45px; }
+  .connection-pill { display: inline-flex; margin: 0; padding: 4px 9px; font-size: 9px; }
+  .queue-layout { grid-template-columns: 1fr; gap: 16px; }
+  .my-turn-card { align-items: flex-start; gap: 14px; padding: 23px; }
+  .turn-action { width: 100%; }
+  .queue-list-card { padding-inline: 14px; }
+  .public-next-row::before { left: -14px; }
+  .queue-side-column { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .now-playing-card { grid-column: 1 / -1; }
+  .explain-card, .session-code-card { margin-top: 0; }
+  .session-code-card { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .queue-page-shell { width: calc(100% - 28px); }
+  .queue-title-row { display: flex; gap: 8px; }
+  .queue-title-row h1 { font-size: 39px; }
+  .queue-title-row p { font-size: 12px; }
+  .connection-pill { max-width: 122px; white-space: normal; }
+  .position-number { font-size: 66px; }
+  .position-text { font-size: 27px; }
+  .queue-side-column { grid-template-columns: 1fr; }
+  .now-playing-card, .session-code-card { grid-column: auto; }
+  .public-queue-row { gap: 10px; }
+  .public-player-name strong { font-size: 13px; }
+  .next-chip { padding-inline: 6px; font-size: 8px; }
+}

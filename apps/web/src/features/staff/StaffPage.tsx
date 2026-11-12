@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
-import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LockKeyhole, LogOut, Plus, Radio, RefreshCw, ShieldCheck, UsersRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LockKeyhole, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
 import { getStaffToken } from '../../shared/api/client';
 import { staffApi as api } from './api';
 import type { StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
@@ -17,8 +17,10 @@ import { StaffQueuePanel } from './components/StaffQueuePanel';
 import { useSessionRealtime } from '../../shared/hooks/useSessionRealtime';
 import { SessionCheckInCard } from './components/SessionCheckInCard';
 import { ActivityRecord } from './components/ActivityRecord';
+import { Button, Dialog, PageContainer, StatusPill } from '../../shared/components/Ui';
 
 export function StaffPage() {
+  const navigate = useNavigate();
   const [token, setToken] = useState(getStaffToken());
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -77,7 +79,7 @@ export function StaffPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, selectedId]);
 
-  useSessionRealtime(snapshot?.session.publicCode, () => { void loadSnapshot(); });
+  const realtimeConnected = useSessionRealtime(snapshot?.session.publicCode, () => { void loadSnapshot(); });
 
   useEffect(() => {
     if (!snapshot?.session.publicCode) return;
@@ -179,7 +181,46 @@ export function StaffPage() {
   }
 
   if (!token) {
-    return <main className={cx("staff-page", staffStyles, sharedStyles)}><SiteHeader subtle /><div className={cx("staff-login-wrap", staffStyles, sharedStyles)}><Link to="/" className={cx("back-link", staffStyles, sharedStyles)}><ArrowLeft size={16} /> Back to CourtFlow</Link><section className={cx("staff-login-card", staffStyles, sharedStyles)}><div className={cx("login-icon", staffStyles, sharedStyles)}><LockKeyhole size={22} /></div><div className={cx("eyebrow", staffStyles, sharedStyles)}>LOCAL VENUE ACCESS</div><h1>Welcome back,<br />court captain.</h1><p>Sign in to open the queue, manage courts, and call the next game.</p><form onSubmit={login}><label htmlFor="staff-pin">Staff PIN</label><input id="staff-pin" type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter your PIN" required /><button className={cx("button button-primary button-full", staffStyles, sharedStyles)} disabled={busy || pin.length < 4}>{busy ? <LoaderCircle className={cx("spin", staffStyles, sharedStyles)} size={17} /> : <>Open dashboard <ArrowRight size={17} /></>}</button></form>{error && <div className={cx("inline-error", staffStyles, sharedStyles)} role="alert">{error}</div>}<div className={cx("login-local-note", staffStyles, sharedStyles)}><ShieldCheck size={15} /> Local development access. Your PIN stays on this computer.</div></section></div></main>;
+    return (
+      <main className={cx('staff-page staff-login-page', staffStyles, sharedStyles)}>
+        <SiteHeader subtle />
+        <Dialog
+          title="Local venue access"
+          size="sm"
+          onClose={() => navigate('/')}
+          className={cx('staff-login-card', staffStyles, sharedStyles)}
+        >
+          <Button
+            type="button"
+            variant="quiet"
+            size="sm"
+            className={cx('modal-close', staffStyles, sharedStyles)}
+            aria-label="Close staff PIN dialog"
+            onClick={() => navigate('/')}
+          >
+            <X size={18} aria-hidden="true" />
+          </Button>
+          <div className={cx('login-icon', staffStyles, sharedStyles)} aria-hidden="true"><LockKeyhole size={22} /></div>
+          <div className={cx('eyebrow', staffStyles, sharedStyles)}>LOCAL VENUE ACCESS</div>
+          <h1>Welcome back,<br />court captain.</h1>
+          <p>Sign in to open the queue, manage courts, and call the next game.</p>
+          <form onSubmit={login}>
+            <label htmlFor="staff-pin">Staff PIN</label>
+            <input id="staff-pin" type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter your PIN" required />
+            <Button className={cx('button-full', staffStyles, sharedStyles)} disabled={busy || pin.length < 4}>
+              {busy ? <LoaderCircle className={cx('spin', staffStyles, sharedStyles)} size={17} /> : <>Open dashboard <ArrowRight size={17} /></>}
+            </Button>
+          </form>
+          {error && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{error}</div>}
+          <div className={cx('login-local-note', staffStyles, sharedStyles)}>
+            <span className={cx('login-local-icon', staffStyles, sharedStyles)}>
+              <ShieldCheck size={17} aria-hidden="true" />
+            </span>
+            <span>Local development access. Your PIN stays on this computer.</span>
+          </div>
+        </Dialog>
+      </main>
+    );
   }
 
   const queue = (snapshot?.queue ?? []) as StaffQueueEntry[];
@@ -188,11 +229,43 @@ export function StaffPage() {
   return (
     <main className={cx("staff-page", staffStyles, sharedStyles)}>
       <SiteHeader subtle />
-      <div className={cx("staff-shell", staffStyles, sharedStyles)}>
-        <div className={cx("staff-topline", staffStyles, sharedStyles)}><div><Link to="/" className={cx("back-link", staffStyles, sharedStyles)}><ArrowLeft size={15} /> Home</Link><div className={cx("staff-page-heading", staffStyles, sharedStyles)}><div><div className={cx("eyebrow", staffStyles, sharedStyles)}><span className={cx("live-label", staffStyles, sharedStyles)}><i /> VENUE CONTROL</span></div><h1>Staff dashboard</h1><p>Keep every court moving and every turn easy to explain.</p></div><button className={cx("button button-outline signout-button", staffStyles, sharedStyles)} onClick={() => { localStorage.removeItem('courtflow:staff-token'); setToken(undefined); }}><LogOut size={16} /> Sign out</button></div></div></div>
-        {error && <div className={cx("inline-error", staffStyles, sharedStyles)} role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></button></div>}
-        <div className={cx("staff-toolbar", staffStyles, sharedStyles)}><div className={cx("session-picker", staffStyles, sharedStyles)}><label htmlFor="session-select">ACTIVE SESSION</label><div className={cx("select-wrap", staffStyles, sharedStyles)}><select id="session-select" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>{sessions.map((session) => <option key={session.id} value={session.id}>{session.name} · {session.publicCode}</option>)}</select><ChevronDown size={16} /></div></div><button className={cx("button button-primary", staffStyles, sharedStyles)} onClick={() => setShowCreate((value) => !value)}><Plus size={17} /> New session</button></div>
-        {showCreate && <form className={cx("create-session-card", staffStyles, sharedStyles)} onSubmit={createSession}><div className={cx("create-session-heading", staffStyles, sharedStyles)}><div><div className={cx("eyebrow", staffStyles, sharedStyles)}>SET UP OPEN PLAY</div><h2>Start a session</h2></div><button type="button" className={cx("icon-button", staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCreate(false)}><X size={18} /></button></div><div className={cx("create-fields", staffStyles, sharedStyles)}><label>Session name<input value={sessionName} onChange={(event) => setSessionName(event.target.value)} maxLength={60} required /></label><label>Sport<input value={sport} onChange={(event) => setSport(event.target.value)} maxLength={30} required /></label><label>Courts<input type="number" min={1} max={16} value={courtCount} onChange={(event) => setCourtCount(Number(event.target.value))} /></label><label>Players per game<select value={gameSize} onChange={(event) => setGameSize(Number(event.target.value) as 2 | 4)}><option value={2}>2 players</option><option value={4}>4 players</option></select></label></div><div className={cx("create-session-actions", staffStyles, sharedStyles)}><span>Creates a fresh, shareable queue code.</span><button className={cx("button button-primary", staffStyles, sharedStyles)} disabled={busy}>Create session <ArrowRight size={16} /></button></div></form>}
+      <PageContainer width="wide" className={cx("staff-shell", staffStyles, sharedStyles)}>
+        <div className={cx("staff-topline", staffStyles, sharedStyles)}>
+          <Link to="/" className={cx("back-link", staffStyles, sharedStyles)}>
+            <ArrowLeft size={15} aria-hidden="true" /> Home
+          </Link>
+          <Button
+            variant="quiet"
+            size="sm"
+            className={cx("signout-button", staffStyles, sharedStyles)}
+            onClick={() => {
+              localStorage.removeItem('courtflow:staff-token');
+              setToken(undefined);
+            }}
+          >
+            <LogOut size={16} aria-hidden="true" /> Sign out
+          </Button>
+          <div className={cx("staff-page-heading", staffStyles, sharedStyles)}>
+            <StatusPill tone="live">VENUE CONTROL</StatusPill>
+            <h1>Staff dashboard</h1>
+            <p>Keep every court moving and every turn easy to explain.</p>
+          </div>
+        </div>
+        {error && <div className={cx("inline-error", staffStyles, sharedStyles)} role="alert">{error}<Button type="button" variant="quiet" size="sm" onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></Button></div>}
+        <div className={cx("staff-toolbar", staffStyles, sharedStyles)}>
+          <div className={cx("session-picker", staffStyles, sharedStyles)}>
+            <label htmlFor="session-select">ACTIVE SESSION</label>
+            <div className={cx("select-wrap", staffStyles, sharedStyles)}>
+              <select id="session-select" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+                {sessions.map((session) => (
+                  <option key={session.id} value={session.id}>{session.name} · {session.publicCode}</option>
+                ))}
+              </select>
+              <ChevronDown size={17} aria-hidden="true" />
+            </div>
+          </div>
+          <Button className={cx('session-create-button', staffStyles, sharedStyles)} onClick={() => setShowCreate(true)}><Plus size={17} aria-hidden="true" /> New session</Button>
+        </div>
         {loading && !snapshot ? <LoadingCard label="Loading venue controls…" /> : snapshot ? <>
           <div className={cx("staff-metrics-grid", staffStyles, sharedStyles)}><MetricCard label="WAITING" value={snapshot.waitingCount} detail="players in line" icon={<UsersRound size={18} />} color="lime" /><MetricCard label="COURTS OPEN" value={availableCourts.length} detail={`of ${snapshot.courts.length} courts`} icon={<Flag size={18} />} color="blue" /><MetricCard label="GAME SIZE" value={snapshot.session.playersPerGame} detail="players per game" icon={<Crown size={18} />} color="peach" /><MetricCard label="SESSION STATUS" value={snapshot.session.state === 'open' ? 'LIVE' : 'CLOSED'} detail={snapshot.session.sport} icon={<Radio size={18} />} color="green" /></div>
           <div className={cx("staff-dashboard-grid", staffStyles, sharedStyles)}>
@@ -212,7 +285,7 @@ export function StaffPage() {
                     onFinish={startCompleting}
                   />
                 ))}
-                <button className={cx('add-court-card', staffStyles, sharedStyles)} onClick={() => {
+                <Button variant="quiet" className={cx('add-court-card', staffStyles, sharedStyles)} onClick={() => {
                   const next = snapshot.courts.length + 1;
                   void (async () => {
                     setBusy(true);
@@ -225,7 +298,7 @@ export function StaffPage() {
                       setBusy(false);
                     }
                   })();
-                }} disabled={busy}><span><Plus size={18} /></span>Add a court</button>
+                }} disabled={busy}><span><Plus size={18} /></span>Add a court</Button>
               </div>
               <StaffQueuePanel
                 queue={queue}
@@ -244,8 +317,36 @@ export function StaffPage() {
             </aside>
           </div>
         </> : <ErrorPanel error="No session selected yet." onRetry={() => token && void loadSessions(token)} />}
-        <footer className={cx("queue-footer staff-footer", staffStyles, sharedStyles)}><Brand /><span>Venue controls · Local preview</span><button onClick={() => void loadSnapshot()}><RefreshCw size={14} /> Refresh</button></footer>
-      </div>
+        <footer className={cx("queue-footer staff-footer", staffStyles, sharedStyles)}>
+          <Brand />
+          <span>Venue controls · Local preview</span>
+          <span
+            className={cx(`staff-sync-status ${realtimeConnected ? 'is-connected' : 'is-reconnecting'}`, staffStyles, sharedStyles)}
+            role="status"
+            aria-live="polite"
+          >
+            <i aria-hidden="true" />
+            {realtimeConnected ? 'Live updates on' : 'Reconnecting'}
+          </span>
+        </footer>
+      </PageContainer>
+      {showCreate && (
+        <Dialog title="Start a session" size="md" onClose={() => setShowCreate(false)}>
+          <form className={cx('create-session-card', staffStyles, sharedStyles)} onSubmit={createSession}>
+            <div className={cx('create-session-heading', staffStyles, sharedStyles)}>
+              <div><div className={cx('eyebrow', staffStyles, sharedStyles)}>SET UP OPEN PLAY</div><h2>Start a session</h2></div>
+              <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCreate(false)}><X size={18} /></Button>
+            </div>
+            <div className={cx('create-fields', staffStyles, sharedStyles)}>
+              <label>Session name<input value={sessionName} onChange={(event) => setSessionName(event.target.value)} maxLength={60} required /></label>
+              <label>Sport<input value={sport} onChange={(event) => setSport(event.target.value)} maxLength={30} required /></label>
+              <label>Courts<input type="number" min={1} max={16} value={courtCount} onChange={(event) => setCourtCount(Number(event.target.value))} /></label>
+              <label>Players per game<select value={gameSize} onChange={(event) => setGameSize(Number(event.target.value) as 2 | 4)}><option value={2}>2 players</option><option value={4}>4 players</option></select></label>
+            </div>
+            <div className={cx('create-session-actions', staffStyles, sharedStyles)}><span>Creates a fresh, shareable queue code.</span><Button disabled={busy}>Create session <ArrowRight size={16} /></Button></div>
+          </form>
+        </Dialog>
+      )}
       <StaffActionModals
         reasonAction={reasonAction}
         reason={reason}

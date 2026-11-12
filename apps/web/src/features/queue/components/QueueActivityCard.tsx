@@ -4,10 +4,11 @@ import { cx } from '../../../shared/lib/classNames';
 import sharedStyles from '../../../shared/styles/components.module.css';
 import { activityTitle, formatTime } from '../../../shared/lib/formatters';
 import queueStyles from '../queue.module.css';
+import { Card } from '../../../shared/components/Ui';
 
 export function QueueActivityCard({ items }: { items: ActivityItem[] }) {
   return (
-    <div className={cx('activity-card', queueStyles, sharedStyles)}>
+    <Card className={cx('activity-card', queueStyles, sharedStyles)}>
       <div className={cx('activity-heading', queueStyles, sharedStyles)}>
         <div><div className={cx('eyebrow', queueStyles, sharedStyles)}>THE RECORD</div><h3>Queue activity</h3></div>
         <span className={cx('activity-lock', queueStyles, sharedStyles)}><ShieldCheck size={14} /> Transparent by design</span>
@@ -23,6 +24,6 @@ export function QueueActivityCard({ items }: { items: ActivityItem[] }) {
           ))}
         </div>
       ) : <p className={cx('activity-empty', queueStyles, sharedStyles)}>Player check-ins and court calls will appear here.</p>}
-    </div>
+    </Card>
   );
 }

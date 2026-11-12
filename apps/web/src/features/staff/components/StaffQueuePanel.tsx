@@ -4,6 +4,7 @@ import { cx } from '../../../shared/lib/classNames';
 import { formatTime, initials } from '../../../shared/lib/formatters';
 import sharedStyles from '../../../shared/styles/components.module.css';
 import staffStyles from '../staff.module.css';
+import { Button, Card } from '../../../shared/components/Ui';
 
 type QueueAction = 'skip' | 'front' | 'back';
 
@@ -16,7 +17,7 @@ type Props = {
 
 export function StaffQueuePanel({ queue, version, busy, onAction }: Props) {
   return (
-    <div className={cx('staff-queue-card', staffStyles, sharedStyles)}>
+    <Card className={cx('staff-queue-card', staffStyles, sharedStyles)}>
       <div className={cx('staff-section-head', staffStyles, sharedStyles)}>
         <div>
           <div className={cx('eyebrow', staffStyles, sharedStyles)}>FIFO · FIRST IN, FIRST UP</div>
@@ -34,9 +35,9 @@ export function StaffQueuePanel({ queue, version, busy, onAction }: Props) {
                 <strong>{entry.displayName}</strong><span>Joined {formatTime(entry.joinedAt)}</span>
               </div>
               <div className={cx('staff-row-actions', staffStyles, sharedStyles)}>
-                <button onClick={() => onAction('front', entry)} disabled={busy || index === 0} title="Move to front"><ArrowUpToLine size={16} /><span>Move up</span></button>
-                <button onClick={() => onAction('back', entry)} disabled={busy || index === queue.length - 1} title="Move to back"><ArrowDownToLine size={16} /><span>Move back</span></button>
-                <button className={cx('staff-skip-action', staffStyles, sharedStyles)} onClick={() => onAction('skip', entry)} disabled={busy} title="Mark no-show or skip"><DoorOpen size={16} /><span>Skip</span></button>
+                <Button variant="quiet" size="sm" className={cx('queue-action', staffStyles, sharedStyles)} onClick={() => onAction('front', entry)} disabled={busy || index === 0} title="Move to front" aria-label={`Move ${entry.displayName} to the front of the queue`}><ArrowUpToLine size={16} aria-hidden="true" /><span>Move up</span></Button>
+                <Button variant="quiet" size="sm" className={cx('queue-action', staffStyles, sharedStyles)} onClick={() => onAction('back', entry)} disabled={busy || index === queue.length - 1} title="Move to back" aria-label={`Move ${entry.displayName} to the back of the queue`}><ArrowDownToLine size={16} aria-hidden="true" /><span>Move back</span></Button>
+                <Button variant="danger" size="sm" className={cx('queue-action staff-skip-action', staffStyles, sharedStyles)} onClick={() => onAction('skip', entry)} disabled={busy} title="Mark no-show or skip" aria-label={`Skip ${entry.displayName}`}><DoorOpen size={16} aria-hidden="true" /><span>Skip</span></Button>
               </div>
             </div>
           ))}
@@ -46,6 +47,6 @@ export function StaffQueuePanel({ queue, version, busy, onAction }: Props) {
           <UsersRound size={21} /><strong>No one is waiting right now</strong><span>Players can scan the session QR to join.</span>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
