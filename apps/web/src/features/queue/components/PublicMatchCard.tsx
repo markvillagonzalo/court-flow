@@ -11,12 +11,17 @@ export function PublicMatchCard({ match }: { match: PublicMatchView }) {
         <span><span className={cx('court-dot', queueStyles, sharedStyles)} /><span className={cx('match-court-label', queueStyles, sharedStyles)}>{match.courtLabel}</span></span>
         <time>{formatTime(match.startedAt)}</time>
       </div>
-      <div className={cx('match-name-grid', queueStyles, sharedStyles)}>
-        {match.players.map((player) => (
-          <span className={cx('match-player', queueStyles, sharedStyles)} key={player}>
-            <span className={cx('match-avatar', queueStyles, sharedStyles)}>{initials(player)}</span>
-            <span className={cx('match-player-name', queueStyles, sharedStyles)}>{player}</span>
-          </span>
+      <div className={cx('public-match-sides', queueStyles, sharedStyles)}>
+        {([1, 2] as const).map((side) => (
+          <div className={cx('public-match-side', queueStyles, sharedStyles)} key={side}>
+            <strong>Side {side}</strong>
+            {match.players.filter((player) => player.side === side).map((player, index) => (
+              <span className={cx('match-player', queueStyles, sharedStyles)} key={`${player.displayName}-${index}`}>
+                <span className={cx('match-avatar', queueStyles, sharedStyles)}>{initials(player.displayName)}</span>
+                <span className={cx('match-player-name', queueStyles, sharedStyles)}>{player.displayName}</span>
+              </span>
+            ))}
+          </div>
         ))}
       </div>
     </div>

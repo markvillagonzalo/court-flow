@@ -47,16 +47,63 @@ CREATE TABLE IF NOT EXISTS matches (
   court_id uuid NOT NULL REFERENCES courts(id),
   status text NOT NULL DEFAULT 'playing' CHECK (status IN ('playing', 'completed')),
   started_at timestamptz NOT NULL DEFAULT now(),
-  finished_at timestamptz
+  finished_at timestamptz,
+  winner_side smallint CHECK (winner_side IS NULL OR winner_side IN (1, 2))
 );
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS winner_side smallint;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'matches_winner_side_check' AND conrelid = 'matches'::regclass
+  ) THEN
+    ALTER TABLE matches ADD CONSTRAINT matches_winner_side_check
+      CHECK (winner_side IS NULL OR winner_side IN (1, 2));
+  END IF;
+END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS matches_one_active_per_court
   ON matches (court_id) WHERE status = 'playing';
 
 CREATE TABLE IF NOT EXISTS match_players (
   match_id uuid NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   ticket_id uuid NOT NULL REFERENCES player_tickets(id),
+  side smallint NOT NULL CHECK (side IN (1, 2)),
   PRIMARY KEY (match_id, ticket_id)
 );
+ALTER TABLE match_players ADD COLUMN IF NOT EXISTS side smallint;
+WITH ranked_players AS (
+  SELECT mp.match_id,
+         mp.ticket_id,
+         row_number() OVER (PARTITION BY mp.match_id ORDER BY p.queue_order, p.id, mp.ticket_id) AS player_number,
+         count(*) OVER (PARTITION BY mp.match_id) AS player_count
+  FROM match_players mp
+  JOIN player_tickets p ON p.id = mp.ticket_id
+), assigned_sides AS (
+  SELECT match_id,
+         ticket_id,
+         CASE
+           WHEN player_count = 2 THEN player_number
+           WHEN player_count = 4 AND player_number <= 2 THEN 1
+           WHEN player_count = 4 THEN 2
+           WHEN player_number <= (player_count + 1) / 2 THEN 1
+           ELSE 2
+         END AS side
+  FROM ranked_players
+)
+UPDATE match_players mp
+SET side = assigned_sides.side
+FROM assigned_sides
+WHERE assigned_sides.match_id = mp.match_id
+  AND assigned_sides.ticket_id = mp.ticket_id
+  AND mp.side IS NULL;
+ALTER TABLE match_players ALTER COLUMN side SET NOT NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'match_players_side_check' AND conrelid = 'match_players'::regclass
+  ) THEN
+    ALTER TABLE match_players ADD CONSTRAINT match_players_side_check CHECK (side IN (1, 2));
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS audit_events (
   id bigserial PRIMARY KEY,

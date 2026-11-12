@@ -6,6 +6,7 @@ import type { SessionRow } from './session-transactions.service';
 import type {
   CreateSessionRequest,
   CreateSessionResponse,
+  MatchSide,
   QueueSnapshot,
   StaffSessionListItem,
   StaffSnapshot,
@@ -20,7 +21,7 @@ export class SessionsService {
 
   async getPublicSnapshot(code: string, playerId?: string, playerSessionId?: string): Promise<QueueSnapshot> {
     const session = await this.transactions.sessionByCode(code);
-    const [courts, waiting, activeMatches, activity] = await Promise.all([
+    const [courts, waiting, activeMatches, activity, standings, recentResults] = await Promise.all([
       this.db.query(
         `SELECT id, label, state FROM courts
          WHERE session_id = $1 AND archived_at IS NULL ORDER BY created_at, label`,
@@ -33,20 +34,59 @@ export class SessionsService {
         [session.id],
       ),
       this.db.query(
-        `SELECT m.id, m.status, m.started_at, c.label AS court_label,
-                p.display_name, p.id AS player_id
+        `SELECT m.id, m.started_at, c.label AS court_label,
+                p.display_name, p.id AS player_id, mp.side
          FROM matches m
          JOIN courts c ON c.id = m.court_id
          JOIN match_players mp ON mp.match_id = m.id
          JOIN player_tickets p ON p.id = mp.ticket_id
          WHERE m.session_id = $1 AND m.status = 'playing'
-         ORDER BY c.created_at, p.display_name`,
+         ORDER BY c.created_at, mp.side, p.display_name`,
         [session.id],
       ),
       this.db.query(
         `SELECT event_type, target_label, reason, created_at
          FROM audit_events WHERE session_id = $1
          ORDER BY created_at DESC, id DESC LIMIT 7`,
+        [session.id],
+      ),
+      this.db.query(
+        `WITH records AS (
+           SELECT p.visitor_id,
+                  count(*)::int AS played,
+                  count(*) FILTER (WHERE mp.side = m.winner_side)::int AS wins,
+                  count(*) FILTER (WHERE mp.side <> m.winner_side)::int AS losses
+           FROM matches m
+           JOIN match_players mp ON mp.match_id = m.id
+           JOIN player_tickets p ON p.id = mp.ticket_id
+           WHERE m.session_id = $1 AND m.status = 'completed' AND m.winner_side IS NOT NULL
+           GROUP BY p.visitor_id
+         )
+         SELECT (
+                  SELECT p.display_name FROM player_tickets p
+                  WHERE p.session_id = $1 AND p.visitor_id = records.visitor_id
+                  ORDER BY p.joined_at DESC, p.id DESC LIMIT 1
+                ) AS display_name,
+                records.played, records.wins, records.losses
+         FROM records
+         ORDER BY records.wins DESC, records.losses ASC, display_name ASC`,
+        [session.id],
+      ),
+      this.db.query(
+        `WITH recent AS (
+           SELECT m.id, m.started_at, m.finished_at, m.winner_side, m.court_id
+           FROM matches m
+           WHERE m.session_id = $1 AND m.status = 'completed' AND m.winner_side IS NOT NULL
+           ORDER BY m.finished_at DESC, m.id DESC
+           LIMIT 10
+         )
+         SELECT recent.id, recent.started_at, recent.finished_at, recent.winner_side,
+                c.label AS court_label, p.display_name, mp.side
+         FROM recent
+         JOIN courts c ON c.id = recent.court_id
+         JOIN match_players mp ON mp.match_id = recent.id
+         JOIN player_tickets p ON p.id = mp.ticket_id
+         ORDER BY recent.finished_at DESC, recent.id DESC, mp.side, p.display_name`,
         [session.id],
       ),
     ]);
@@ -77,6 +117,13 @@ export class SessionsService {
       queue,
       waitingCount: queue.length,
       activeMatches: liveMatches,
+      standings: standings.rows.map((row) => ({
+        displayName: row.display_name as string,
+        played: Number(row.played),
+        wins: Number(row.wins),
+        losses: Number(row.losses),
+      })),
+      recentResults: this.groupCompletedMatches(recentResults.rows),
       myTicket: myTicket
         ? {
             displayName: myTicket.display_name,
@@ -106,12 +153,12 @@ export class SessionsService {
       ),
       this.db.query(
         `SELECT m.id, m.started_at, c.id AS court_id, c.label AS court_label,
-                p.id AS ticket_id, p.display_name, p.leave_after_match
+                p.id AS ticket_id, p.display_name, p.leave_after_match, mp.side
          FROM matches m JOIN courts c ON c.id = m.court_id
          JOIN match_players mp ON mp.match_id = m.id
          JOIN player_tickets p ON p.id = mp.ticket_id
          WHERE m.session_id = $1 AND m.status = 'playing'
-         ORDER BY c.created_at, p.display_name`,
+         ORDER BY c.created_at, mp.side, p.display_name`,
         [sessionId],
       ),
     ]);
@@ -213,7 +260,7 @@ export class SessionsService {
         startedAt: row.started_at,
         players: [],
       };
-      match.players.push(row.display_name);
+      match.players.push({ displayName: row.display_name, side: Number(row.side) as MatchSide });
       byId.set(row.id, match);
     }
     return [...byId.values()];
@@ -233,7 +280,29 @@ export class SessionsService {
         id: row.ticket_id,
         displayName: row.display_name,
         leaveAfterMatch: row.leave_after_match,
+        side: Number(row.side) as MatchSide,
       });
+      byId.set(row.id, match);
+    }
+    return [...byId.values()];
+  }
+
+  private groupCompletedMatches(rows: any[]) {
+    const byId = new Map<string, any>();
+    for (const row of rows) {
+      const match = byId.get(row.id) ?? {
+        id: row.id,
+        courtLabel: row.court_label,
+        startedAt: row.started_at,
+        finishedAt: row.finished_at,
+        winningSide: Number(row.winner_side) as MatchSide,
+        sides: [
+          { side: 1 as const, players: [] as string[] },
+          { side: 2 as const, players: [] as string[] },
+        ],
+      };
+      const side = Number(row.side) as MatchSide;
+      match.sides[side - 1].players.push(row.display_name);
       byId.set(row.id, match);
     }
     return [...byId.values()];

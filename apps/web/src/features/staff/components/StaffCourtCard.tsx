@@ -50,7 +50,9 @@ export function StaffCourtCard({
       {match ? (
         <>
           <div className={cx('staff-match-players', staffStyles, sharedStyles)}>
-            {match.players.map((player) => <span key={player.id}><i />{player.displayName}</span>)}
+            {([1, 2] as const).map((side) => (
+              <span key={side}><i /><b>Side {side}:</b> {match.players.filter((player) => player.side === side).map((player) => player.displayName).join(' & ')}</span>
+            ))}
           </div>
           <div className={cx('court-match-footer', staffStyles, sharedStyles)}>
             <span><Clock3 size={14} /> Started {formatTime(match.startedAt)}</span>

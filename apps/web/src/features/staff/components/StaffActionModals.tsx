@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { ArrowRight, Check, Flag, X } from 'lucide-react';
-import type { StaffMatchView, StaffQueueEntry } from '@court-flow/contracts';
+import type { MatchSide, StaffMatchView, StaffQueueEntry } from '@court-flow/contracts';
 import { cx } from '../../../shared/lib/classNames';
 import { initials } from '../../../shared/lib/formatters';
 import sharedStyles from '../../../shared/styles/components.module.css';
@@ -21,7 +21,9 @@ type Props = {
   onReasonClose: () => void;
   activeMatch: StaffMatchView | null;
   returningPlayerIds: string[];
+  winningSide: MatchSide | null;
   onReturningChange: (playerId: string, checked: boolean) => void;
+  onWinningSideChange: (side: MatchSide) => void;
   onMatchClose: () => void;
   onMatchComplete: () => void;
 };
@@ -35,7 +37,9 @@ export function StaffActionModals({
   onReasonClose,
   activeMatch,
   returningPlayerIds,
+  winningSide,
   onReturningChange,
+  onWinningSideChange,
   onMatchClose,
   onMatchComplete,
 }: Props) {
@@ -46,7 +50,7 @@ export function StaffActionModals({
           title={reasonAction.type === 'skip' ? 'Skip this player?' : reasonAction.type === 'front' ? 'Move to the front?' : 'Move to the back?'}
           size="sm"
           onClose={onReasonClose}
-          className={cx('reason-modal', staffStyles, sharedStyles)}
+          className={cx('reason-modal reason-modal-responsive', staffStyles, sharedStyles)}
         >
           <form className={cx('reason-form', staffStyles, sharedStyles)} onSubmit={onReasonSubmit}>
             <div className={cx('modal-icon', staffStyles, sharedStyles)}><Flag size={19} /></div>
@@ -73,16 +77,39 @@ export function StaffActionModals({
       )}
       {activeMatch && (
         <Dialog
-          title="Who wants another turn?"
+          title="Record the result"
           size="sm"
           onClose={onMatchClose}
-          className={cx('reason-modal finish-modal', staffStyles, sharedStyles)}
+          className={cx('reason-modal reason-modal-responsive finish-modal', staffStyles, sharedStyles)}
         >
           <div className={cx('modal-icon modal-icon-green', staffStyles, sharedStyles)}><Check size={19} /></div>
           <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={onMatchClose}><X size={18} /></Button>
           <div className={cx('eyebrow', staffStyles, sharedStyles)}>GAME COMPLETE · {activeMatch.courtLabel}</div>
-          <h2>Who wants another turn?</h2>
-          <p>Players who stay return to the back of the line.</p>
+          <h2>Record the result</h2>
+          <p>Choose the winning side. Players who stay return to the back of the line.</p>
+          <div className={cx('winner-side-options', staffStyles, sharedStyles)} role="radiogroup" aria-label="Winning side">
+            {([1, 2] as const).map((side) => (
+              <label
+                key={side}
+                className={cx(`winner-side-option ${winningSide === side ? 'is-selected' : ''}`, staffStyles, sharedStyles)}
+              >
+                <input
+                  type="radio"
+                  name="winning-side"
+                  value={side}
+                  checked={winningSide === side}
+                  onChange={() => onWinningSideChange(side)}
+                />
+                <span className={cx('winner-side-heading', staffStyles, sharedStyles)}>
+                  <b>Side {side}</b><small>{winningSide === side ? 'WINNER' : 'Choose winner'}</small>
+                </span>
+                <span className={cx('winner-side-names', staffStyles, sharedStyles)}>
+                  {activeMatch.players.filter((player) => player.side === side).map((player) => player.displayName).join(' & ') || 'No players'}
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className={cx('return-player-section-label', staffStyles, sharedStyles)}>WHO WANTS ANOTHER TURN?</div>
           <div className={cx('return-player-list', staffStyles, sharedStyles)}>
             {activeMatch.players.map((player) => (
               <label key={player.id} className={cx('return-player', staffStyles, sharedStyles)}>
@@ -92,12 +119,12 @@ export function StaffActionModals({
                   onChange={(event) => onReturningChange(player.id, event.target.checked)}
                 />
                 <span className={cx('player-avatar avatar-2', staffStyles, sharedStyles)}>{initials(player.displayName)}</span>
-                <span><b>{player.displayName}</b><small>{player.leaveAfterMatch ? 'Asked to leave after this game' : 'Rejoin at the back'}</small></span>
+                <span><b>{player.displayName}</b><small>Side {player.side} · {player.leaveAfterMatch ? 'Asked to leave after this game' : 'Rejoin at the back'}</small></span>
                 <span className={cx('check-box', staffStyles, sharedStyles)}><Check size={13} /></span>
               </label>
             ))}
           </div>
-          <Button className={cx('button-full', staffStyles, sharedStyles)} onClick={onMatchComplete} disabled={busy}>
+          <Button className={cx('button-full', staffStyles, sharedStyles)} onClick={onMatchComplete} disabled={busy || winningSide === null}>
             Close game &amp; open court <ArrowRight size={16} />
           </Button>
         </Dialog>

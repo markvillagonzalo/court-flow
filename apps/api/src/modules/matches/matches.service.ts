@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
+import type { MatchSide } from '@court-flow/contracts';
 import { DatabaseService } from '../../infrastructure/database/database.service';
 import { SessionTransactionsService } from '../sessions/session-transactions.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { takeNext } from '../queue/queue-rules';
+import { assignSides } from './match-rules';
 
 @Injectable()
 export class MatchesService {
@@ -36,16 +38,21 @@ export class MatchesService {
       if (nextPlayers.length < session.players_per_game) {
         throw new ConflictException(`Need ${session.players_per_game} waiting players to fill this court`);
       }
+      const sideAssignments = assignSides(
+        nextPlayers,
+        session.players_per_game,
+        session.players_per_game === 4 ? randomInt(3) : 0,
+      );
       const matchId = randomUUID();
       await client.query(
         `INSERT INTO matches (id, session_id, court_id, status)
          VALUES ($1, $2, $3, 'playing')`,
         [matchId, sessionId, courtId],
       );
-      for (const player of nextPlayers) {
+      for (const { player, side } of sideAssignments) {
         await client.query(
-          'INSERT INTO match_players (match_id, ticket_id) VALUES ($1, $2)',
-          [matchId, player.id],
+          'INSERT INTO match_players (match_id, ticket_id, side) VALUES ($1, $2, $3)',
+          [matchId, player.id, side],
         );
         await client.query(
           "UPDATE player_tickets SET status = 'playing', updated_at = now() WHERE id = $1",
@@ -64,7 +71,13 @@ export class MatchesService {
     return this.sessions.getStaffSnapshot(sessionId);
   }
 
-  async completeMatch(matchId: string, returningPlayerIds: string[], commandKey?: string) {
+  async completeMatch(
+    matchId: string,
+    returningPlayerIds: string[],
+    winnerSide: MatchSide,
+    commandKey?: string,
+  ) {
+    if (winnerSide !== 1 && winnerSide !== 2) throw new BadRequestException('Choose a winning side');
     const matchLookup = await this.db.query('SELECT session_id FROM matches WHERE id = $1', [matchId]);
     if (!matchLookup.rowCount) throw new NotFoundException('Match not found');
     const sessionId = matchLookup.rows[0].session_id as string;
@@ -77,11 +90,14 @@ export class MatchesService {
       if (!match.rowCount) throw new NotFoundException('Match not found');
       if (match.rows[0].status !== 'playing') throw new ConflictException('This match has already ended');
       const roster = await client.query(
-        `SELECT p.id, p.display_name, p.leave_after_match
+        `SELECT p.id, p.display_name, p.leave_after_match, mp.side
          FROM match_players mp JOIN player_tickets p ON p.id = mp.ticket_id
          WHERE mp.match_id = $1 FOR UPDATE OF p`,
         [matchId],
       );
+      if (!roster.rows.some((player) => Number(player.side) === winnerSide)) {
+        throw new BadRequestException('Winning side is not part of this match');
+      }
       const rosterIds = new Set(roster.rows.map((row) => row.id as string));
       if (returningPlayerIds.some((id) => !rosterIds.has(id))) {
         throw new BadRequestException('Return list must contain only players from this match');
@@ -89,6 +105,12 @@ export class MatchesService {
       let nextOrder = Number(session.next_queue_order);
       const returned: string[] = [];
       const left: string[] = [];
+      const winners = roster.rows
+        .filter((player) => Number(player.side) === winnerSide)
+        .map((player) => player.display_name as string);
+      const losers = roster.rows
+        .filter((player) => Number(player.side) !== winnerSide)
+        .map((player) => player.display_name as string);
       for (const player of roster.rows) {
         const shouldReturn = returningPlayerIds.includes(player.id) && !player.leave_after_match;
         if (shouldReturn) {
@@ -109,8 +131,8 @@ export class MatchesService {
         }
       }
       await client.query(
-        `UPDATE matches SET status = 'completed', finished_at = now() WHERE id = $1`,
-        [matchId],
+        `UPDATE matches SET status = 'completed', finished_at = now(), winner_side = $2 WHERE id = $1`,
+        [matchId, winnerSide],
       );
       await client.query(
         "UPDATE courts SET state = 'available' WHERE id = $1",
@@ -120,10 +142,13 @@ export class MatchesService {
         'UPDATE sessions SET next_queue_order = $2, version = version + 1 WHERE id = $1',
         [sessionId, nextOrder],
       );
-      const target = returned.length ? `${returned.join(', ')} rejoined` : 'Court opened';
+      const target = `Side ${winnerSide} won${returned.length ? ` · ${returned.join(', ')} rejoined` : ''}`;
       await this.transactions.recordEvent(client, sessionId, 'match_completed', 'staff', 'Venue staff', target, null, {
         returned,
         left,
+        winnerSide,
+        winners,
+        losers,
       });
       return { publicCode: session.public_code, version: session.version + 1 };
     });

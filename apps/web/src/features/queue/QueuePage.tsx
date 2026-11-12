@@ -14,6 +14,7 @@ import { RealtimeStatus } from '../../shared/components/RealtimeStatus';
 import { MyTurnCard } from './components/MyTurnCard';
 import { QueueActivityCard } from './components/QueueActivityCard';
 import { QueueSidebar } from './components/QueueSidebar';
+import { SessionResultsCard } from './components/SessionResultsCard';
 import { WaitingQueueCard } from './components/WaitingQueueCard';
 import { PageContainer, StatusPill } from '../../shared/components/Ui';
 
@@ -115,6 +116,7 @@ export function QueuePage() {
                   refreshing={refreshing}
                   onRefresh={() => void refresh(true)}
                 />
+                <SessionResultsCard standings={snapshot.standings} recentResults={snapshot.recentResults} />
                 <QueueActivityCard items={snapshot.recentActivity} />
               </section>
               <QueueSidebar snapshot={snapshot} />

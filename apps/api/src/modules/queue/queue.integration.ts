@@ -1,12 +1,91 @@
 import '../../env';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { DatabaseService } from '../../infrastructure/database/database.service';
 import { MatchesService } from '../matches/matches.service';
 import { QueueGateway } from '../realtime/queue.gateway';
 import { SessionTransactionsService } from '../sessions/session-transactions.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { QueueService } from './queue.service';
+
+async function verifyLegacyMatchMigration(db: DatabaseService) {
+  const client = await db.pool.connect();
+  const schemaName = `migration_smoke_${randomUUID().replaceAll('-', '')}`;
+  try {
+    await client.query(`CREATE SCHEMA "${schemaName}"`);
+    await client.query(`SET search_path TO "${schemaName}"`);
+    await client.query(`
+      CREATE TABLE sessions (
+        id uuid PRIMARY KEY, name text NOT NULL, public_code text NOT NULL UNIQUE,
+        sport text NOT NULL DEFAULT 'Racquet sports', players_per_game smallint NOT NULL CHECK (players_per_game IN (2, 4)),
+        state text NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'closed')),
+        version integer NOT NULL DEFAULT 1, next_queue_order bigint NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE courts (
+        id uuid PRIMARY KEY, session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        label text NOT NULL, state text NOT NULL DEFAULT 'playing' CHECK (state IN ('available', 'playing')),
+        archived_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE player_tickets (
+        id uuid PRIMARY KEY, session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        visitor_id text NOT NULL, display_name text NOT NULL,
+        status text NOT NULL DEFAULT 'playing' CHECK (status IN ('waiting', 'playing', 'left', 'skipped')),
+        queue_order bigint NOT NULL, leave_after_match boolean NOT NULL DEFAULT false,
+        joined_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE matches (
+        id uuid PRIMARY KEY, session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        court_id uuid NOT NULL REFERENCES courts(id),
+        status text NOT NULL DEFAULT 'playing' CHECK (status IN ('playing', 'completed')),
+        started_at timestamptz NOT NULL DEFAULT now(), finished_at timestamptz
+      );
+      CREATE TABLE match_players (
+        match_id uuid NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+        ticket_id uuid NOT NULL REFERENCES player_tickets(id), PRIMARY KEY (match_id, ticket_id)
+      );
+    `);
+    const sessionId = randomUUID();
+    const courtId = randomUUID();
+    const matchId = randomUUID();
+    await client.query(
+      'INSERT INTO sessions (id, name, public_code, players_per_game) VALUES ($1, $2, $3, 4)',
+      [sessionId, 'Legacy session', `migration-${sessionId}`],
+    );
+    await client.query('INSERT INTO courts (id, session_id, label) VALUES ($1, $2, $3)', [courtId, sessionId, 'Court 1']);
+    await client.query('INSERT INTO matches (id, session_id, court_id, status) VALUES ($1, $2, $3, \'playing\')', [matchId, sessionId, courtId]);
+    const ticketIds = Array.from({ length: 4 }, () => randomUUID());
+    for (const [index, ticketId] of ticketIds.entries()) {
+      await client.query(
+        `INSERT INTO player_tickets (id, session_id, visitor_id, display_name, queue_order)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [ticketId, sessionId, randomUUID(), `Legacy player ${index + 1}`, index + 1],
+      );
+      await client.query('INSERT INTO match_players (match_id, ticket_id) VALUES ($1, $2)', [matchId, ticketId]);
+    }
+
+    const schema = await readFile(resolve(__dirname, '../../../database/schema.sql'), 'utf8');
+    await client.query(schema);
+    const migrated = await client.query(
+      `SELECT m.status, m.winner_side, p.display_name, mp.side
+       FROM matches m JOIN match_players mp ON mp.match_id = m.id
+       JOIN player_tickets p ON p.id = mp.ticket_id
+       WHERE m.id = $1 ORDER BY p.queue_order`,
+      [matchId],
+    );
+    assert.equal(migrated.rowCount, 4, 'migration preserves all players in the active match');
+    assert.deepEqual(migrated.rows.map((row) => Number(row.side)), [1, 1, 2, 2], 'active match sides are backfilled deterministically');
+    assert.ok(migrated.rows.every((row) => row.status === 'playing' && row.winner_side === null));
+    await client.query("UPDATE matches SET status = 'completed', winner_side = 1, finished_at = now() WHERE id = $1", [matchId]);
+    assert.equal((await client.query('SELECT winner_side FROM matches WHERE id = $1', [matchId])).rows[0].winner_side, 1);
+  } finally {
+    await client.query('RESET search_path').catch(() => undefined);
+    await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
+    client.release();
+  }
+}
 
 async function main() {
   const db = new DatabaseService();
@@ -25,6 +104,7 @@ async function main() {
 
   try {
     await db.query('SELECT 1');
+    await verifyLegacyMatchMigration(db);
     const created = await sessions.createSession({
       name: 'Integration smoke',
       sport: 'Pickleball',
@@ -72,16 +152,76 @@ async function main() {
 
     const match = staff.activeMatches[0];
     assert.ok(match);
-    const matchPlayers = match.players as { id: string; displayName: string }[];
+    const matchPlayers = match.players;
+    assert.equal(matchPlayers.filter((player) => player.side === 1).length, 2, 'a doubles side has two players');
+    assert.equal(matchPlayers.filter((player) => player.side === 2).length, 2, 'the other doubles side has two players');
+    const winnerSide = matchPlayers[0].side;
     assert.equal((await queue.withdraw(created.id, matchPlayers[0].id)).status, 'leave_after_match');
+    await assert.rejects(
+      matches.completeMatch(match.id, matchPlayers.map((player) => player.id), 3 as 1 | 2),
+      'invalid winning sides are rejected',
+    );
     const closed = await matches.completeMatch(
       match.id,
       matchPlayers.map((player) => player.id),
+      winnerSide,
       'finish-match-command',
     );
     assert.equal(closed.activeMatches.length, 0);
     assert.equal(closed.courts[0].state, 'available');
     assert.equal(closed.queue.length, 7, 'the three returning players rejoin behind those already waiting');
+    assert.equal(closed.standings.length, 4, 'all match participants are counted');
+    assert.equal(closed.recentResults.length, 1, 'the completed result is public');
+    assert.equal(closed.recentResults[0].winningSide, winnerSide);
+    for (const player of matchPlayers) {
+      const standing = closed.standings.find((item) => item.displayName === player.displayName);
+      assert.ok(standing);
+      assert.equal(standing.played, 1);
+      assert.equal(standing.wins, player.side === winnerSide ? 1 : 0);
+      assert.equal(standing.losses, player.side === winnerSide ? 0 : 1);
+    }
+    const visitorResult = await db.query('SELECT visitor_id FROM player_tickets WHERE id = $1', [matchPlayers[0].id]);
+    const rejoined = await queue.join(created.publicCode, visitorResult.rows[0].visitor_id, 'Returned under new name');
+    assert.notEqual(rejoined.id, matchPlayers[0].id, 'a player who left can return on a new ticket');
+    const afterRejoin = await sessions.getPublicSnapshot(created.publicCode);
+    const mergedStanding = afterRejoin.standings.find((item) => item.displayName === 'Returned under new name');
+    assert.deepEqual(
+      { played: mergedStanding?.played, wins: mergedStanding?.wins, losses: mergedStanding?.losses },
+      { played: 1, wins: winnerSide === matchPlayers[0].side ? 1 : 0, losses: winnerSide === matchPlayers[0].side ? 0 : 1 },
+      'session totals follow the browser visitor identity across rejoin',
+    );
+    assert.equal(afterRejoin.recentResults[0].sides[winnerSide - 1].players.length, 2);
+
+    const legacyMatchId = randomUUID();
+    const opposingPlayers = matchPlayers.filter((player) => player.side !== matchPlayers[0].side);
+    await db.query(
+      `INSERT INTO matches (id, session_id, court_id, status, finished_at)
+       VALUES ($1, $2, $3, 'completed', now() + interval '1 hour')`,
+      [legacyMatchId, created.id, courtId],
+    );
+    await db.query(
+      `INSERT INTO match_players (match_id, ticket_id, side)
+       VALUES ($1, $2, $3), ($1, $4, $5)`,
+      [legacyMatchId, matchPlayers[0].id, matchPlayers[0].side, opposingPlayers[0].id, opposingPlayers[0].side],
+    );
+    await db.query('UPDATE matches SET finished_at = now() - interval \'1 hour\' WHERE id = $1', [match.id]);
+    const withoutLegacyResult = await sessions.getPublicSnapshot(created.publicCode);
+    assert.equal(withoutLegacyResult.recentResults.length, 1, 'completed legacy matches without a winner stay out of history');
+    assert.equal(withoutLegacyResult.standings.length, 4, 'legacy matches without a winner do not affect player totals');
+
+    const nextCall = await matches.callNext(created.id, courtId, 'second-call-command');
+    const nextMatch = nextCall.activeMatches[0];
+    assert.ok(nextMatch);
+    const nextWinnerSide = nextMatch.players[0].side;
+    const afterSecondMatch = await matches.completeMatch(
+      nextMatch.id,
+      nextMatch.players.map((player) => player.id),
+      nextWinnerSide,
+      'second-finish-command',
+    );
+    assert.equal(afterSecondMatch.recentResults.length, 2);
+    assert.equal(afterSecondMatch.recentResults[0].id, nextMatch.id, 'recent results are newest first');
+    assert.equal(afterSecondMatch.recentResults[1].id, match.id);
 
     staff = await sessions.getStaffSnapshot(created.id);
     const skipped = staff.queue[0];

@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsUUID } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsUUID } from 'class-validator';
 import { Body, Controller, Headers, Param, Post } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { MatchesService } from './matches.service';
@@ -9,6 +9,9 @@ class CompleteMatchDto implements CompleteMatchRequest {
   @ArrayMaxSize(16)
   @IsUUID('all', { each: true })
   returningPlayerIds!: string[];
+
+  @IsIn([1, 2])
+  winnerSide!: 1 | 2;
 }
 
 @Controller()
@@ -34,6 +37,6 @@ export class MatchesController {
     @Body() body: CompleteMatchDto,
   ) {
     this.auth.requireStaff(header);
-    return this.matches.completeMatch(matchId, body.returningPlayerIds, commandKey);
+    return this.matches.completeMatch(matchId, body.returningPlayerIds, body.winnerSide, commandKey);
   }
 }

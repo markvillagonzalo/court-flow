@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
 import { getStaffToken } from '../../shared/api/client';
 import { staffApi as api } from './api';
-import type { StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
+import type { MatchSide, StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
 import staffStyles from './staff.module.css';
@@ -40,6 +40,7 @@ export function StaffPage() {
   const [reason, setReason] = useState('');
   const [activeMatch, setActiveMatch] = useState<StaffMatchView | null>(null);
   const [returning, setReturning] = useState<string[]>([]);
+  const [winningSide, setWinningSide] = useState<MatchSide | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function loadSessions(currentToken: string) {
@@ -159,14 +160,17 @@ export function StaffPage() {
     const players = match.players;
     setActiveMatch(match);
     setReturning(players.filter((player) => !player.leaveAfterMatch).map((player) => player.id));
+    setWinningSide(null);
   }
 
   async function finishMatch() {
-    if (!activeMatch || !token) return;
+    if (!activeMatch || !token || winningSide === null) return;
     const match = activeMatch;
     const returnIds = [...returning];
+    const resultSide = winningSide;
     setActiveMatch(null);
-    await perform(() => api.completeMatch(token, match.id, { returningPlayerIds: returnIds }));
+    setWinningSide(null);
+    await perform(() => api.completeMatch(token, match.id, { returningPlayerIds: returnIds, winnerSide: resultSide }));
   }
 
   async function copyJoinLink() {
@@ -337,9 +341,11 @@ export function StaffPage() {
         onReasonClose={() => setReasonAction(null)}
         activeMatch={activeMatch}
         returningPlayerIds={returning}
+        winningSide={winningSide}
         onReturningChange={(playerId, checked) => setReturning((current) => checked
           ? [...current, playerId]
           : current.filter((id) => id !== playerId))}
+        onWinningSideChange={setWinningSide}
         onMatchClose={() => setActiveMatch(null)}
         onMatchComplete={() => void finishMatch()}
       />

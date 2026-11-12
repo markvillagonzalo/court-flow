@@ -5,13 +5,15 @@ export type PlayerTicketStatus = 'waiting' | 'playing' | 'left' | 'skipped';
 export type Court = { id: string; label: string; state: CourtState };
 export type PublicQueueEntry = { displayName: string; position: number; joinedAt: string };
 export type StaffQueueEntry = PublicQueueEntry & { id: string; queueOrder: number };
+export type MatchSide = 1 | 2;
+export type PublicMatchPlayer = { displayName: string; side: MatchSide };
 export type PublicMatchView = {
   id: string;
   courtLabel: string;
   startedAt: string;
-  players: string[];
+  players: PublicMatchPlayer[];
 };
-export type StaffMatchPlayer = { id: string; displayName: string; leaveAfterMatch: boolean };
+export type StaffMatchPlayer = { id: string; displayName: string; leaveAfterMatch: boolean; side: MatchSide };
 export type StaffMatchView = {
   id: string;
   courtId: string;
@@ -19,6 +21,16 @@ export type StaffMatchView = {
   startedAt: string;
   players: StaffMatchPlayer[];
 };
+export type MatchSideView = { side: MatchSide; players: string[] };
+export type CompletedMatchView = {
+  id: string;
+  courtLabel: string;
+  startedAt: string;
+  finishedAt: string;
+  winningSide: MatchSide;
+  sides: MatchSideView[];
+};
+export type PlayerStanding = { displayName: string; played: number; wins: number; losses: number };
 export type MatchView = PublicMatchView | StaffMatchView;
 export type ActivityItem = { eventType: string; target: string; reason?: string | null; createdAt: string };
 export type SessionView = {
@@ -42,6 +54,8 @@ export type QueueSnapshot = {
   queue: (PublicQueueEntry | StaffQueueEntry)[];
   waitingCount: number;
   activeMatches: MatchView[];
+  standings: PlayerStanding[];
+  recentResults: CompletedMatchView[];
   myTicket: PlayerTicketView | null;
   recentActivity: ActivityItem[];
 };
@@ -84,7 +98,7 @@ export type CreateSessionRequest = {
 };
 export type CreateSessionResponse = { id: string; publicCode: string };
 export type CreateCourtRequest = { label: string };
-export type CompleteMatchRequest = { returningPlayerIds: string[] };
+export type CompleteMatchRequest = { returningPlayerIds: string[]; winnerSide: MatchSide };
 export type ReasonRequest = { reason: string };
 export type ReorderRequest = ReasonRequest & { target: 'front' | 'back' };
 export type SessionChangedEvent = { version: number };
