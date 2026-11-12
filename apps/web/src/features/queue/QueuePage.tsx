@@ -1,0 +1,122 @@
+import { type FormEvent, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, Radio } from 'lucide-react';
+import type { PublicSnapshot } from '@court-flow/contracts';
+import { getPlayerToken } from '../../shared/api/client';
+import { Brand, SiteHeader } from '../../shared/components/Navigation';
+import { ErrorPanel, LoadingCard } from '../../shared/components/Feedback';
+import { useSessionRealtime } from '../../shared/hooks/useSessionRealtime';
+import { cx } from '../../shared/lib/classNames';
+import sharedStyles from '../../shared/styles/components.module.css';
+import queueStyles from './queue.module.css';
+import { queueApi as api } from './api';
+import { MyTurnCard } from './components/MyTurnCard';
+import { QueueActivityCard } from './components/QueueActivityCard';
+import { QueueSidebar } from './components/QueueSidebar';
+import { WaitingQueueCard } from './components/WaitingQueueCard';
+
+export function QueuePage() {
+  const { code = 'demo' } = useParams();
+  const [snapshot, setSnapshot] = useState<PublicSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const token = getPlayerToken(code);
+
+  const refresh = async (quiet = false) => {
+    if (quiet) setRefreshing(true);
+    try {
+      const next = await api.publicSnapshot(code, getPlayerToken(code));
+      setSnapshot(next);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load this queue.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, [code]);
+  const connected = useSessionRealtime(code, () => { void refresh(true); });
+
+  async function joinQueue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!name.trim()) return;
+    setJoining(true);
+    setError('');
+    try {
+      await api.join(code, name);
+      await refresh(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join the queue.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function leaveQueue() {
+    if (!token) return;
+    setJoining(true);
+    try {
+      const result = await api.withdraw(token);
+      if (result.status === 'left') localStorage.removeItem(`courtflow:player:${code}`);
+      await refresh(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update your ticket.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  const myTicket = snapshot?.myTicket ?? null;
+  return (
+    <main className={cx('queue-page', queueStyles, sharedStyles)}>
+      <SiteHeader subtle />
+      <div className={cx('queue-page-shell', queueStyles, sharedStyles)}>
+        <Link to="/" className={cx('back-link', queueStyles, sharedStyles)}><ArrowLeft size={16} /> Back to CourtFlow</Link>
+        {loading ? <LoadingCard label="Opening the live queue…" /> : error && !snapshot ? <ErrorPanel error={error} onRetry={() => void refresh()} /> : snapshot ? (
+          <>
+            <div className={cx('queue-title-row', queueStyles, sharedStyles)}>
+              <div>
+                <div className={cx('eyebrow', queueStyles, sharedStyles)}>
+                  <span className={cx('live-label', queueStyles, sharedStyles)}><i /> LIVE QUEUE</span>
+                  <span className={cx('eyebrow-spacer', queueStyles, sharedStyles)}>·</span>{snapshot.session.sport.toUpperCase()}
+                </div>
+                <h1>{snapshot.session.name}</h1>
+                <p>Every turn is visible. Every player gets a fair place.</p>
+              </div>
+              <div className={cx(`connection-pill ${connected ? 'is-connected' : ''}`, queueStyles, sharedStyles)}>
+                <Radio size={15} /><span>{connected ? 'Live updates on' : 'Reconnecting'}</span>
+              </div>
+            </div>
+            <div className={cx('queue-layout', queueStyles, sharedStyles)}>
+              <section className={cx('queue-main-column', queueStyles, sharedStyles)}>
+                <MyTurnCard
+                  ticket={myTicket}
+                  name={name}
+                  joining={joining}
+                  onNameChange={setName}
+                  onJoin={joinQueue}
+                  onLeave={() => void leaveQueue()}
+                />
+                {error && <div className={cx('inline-error', queueStyles, sharedStyles)} role="alert">{error}</div>}
+                <WaitingQueueCard
+                  entries={snapshot.queue}
+                  waitingCount={snapshot.waitingCount}
+                  refreshing={refreshing}
+                  onRefresh={() => void refresh(true)}
+                />
+                <QueueActivityCard items={snapshot.recentActivity} />
+              </section>
+              <QueueSidebar snapshot={snapshot} />
+            </div>
+            <footer className={cx('queue-footer', queueStyles, sharedStyles)}><Brand /><span>Good flow, better play.</span><span>Session {snapshot.session.publicCode}</span></footer>
+          </>
+        ) : <ErrorPanel error={error || 'Queue not found.'} onRetry={() => void refresh()} />}
+      </div>
+    </main>
+  );
+}

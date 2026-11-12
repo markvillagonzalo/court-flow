@@ -1,0 +1,28 @@
+:root {
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  color: #173b35;
+  background: #f7f7f2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #173b35;
+  --ink-deep: #102b26;
+  --muted: #73847e;
+  --line: #e7e9e2;
+  --paper: #fffefa;
+  --canvas: #f7f7f2;
+  --lime: #d9f36a;
+  --green: #4d8c64;
+  --mono: 'DM Mono', Consolas, monospace;
+  --display: 'Manrope', 'Segoe UI', sans-serif;
+  font-optical-sizing: auto;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); }
+button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { color: inherit; }
+a { color: inherit; text-decoration: none; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #a9ce31; outline-offset: 3px; }@keyframes spin { to { transform: rotate(360deg); } }

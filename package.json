@@ -1,0 +1,22 @@
+{
+  "name": "court-flow",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "dev": "npm run db:setup && concurrently -k -n API,WEB -c cyan,green \"npm run dev:watch --workspace @court-flow/api\" \"npm run dev --workspace @court-flow/web\"",
+    "build": "npm run build --workspace @court-flow/api && npm run build --workspace @court-flow/web",
+    "test": "npm run test --workspace @court-flow/api",
+    "test:integration": "npm run db:setup && node apps/api/dist/modules/queue/queue.integration.js",
+    "db:setup": "npm run db:setup --workspace @court-flow/api",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
