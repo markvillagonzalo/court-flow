@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleUserRound } from 'lucide-react';
 import { cx } from '../lib/classNames';
@@ -21,5 +22,15 @@ export function SiteHeader({ subtle = false }: { subtle?: boolean }) {
         <Link to="/staff" className={cx("nav-staff", sharedStyles)}><CircleUserRound size={16} /> Venue staff</Link>
       </nav>
     </header>
+  );
+}
+
+export function SiteFooter({ rightContent = '© CourtFlow' }: { rightContent?: ReactNode }) {
+  return (
+    <footer className={cx('site-footer', sharedStyles)}>
+      <Brand />
+      <span className={cx('footer-tagline', sharedStyles)}>Good flow, better play.</span>
+      <span className={cx('footer-meta', sharedStyles)}>{rightContent}</span>
+    </footer>
   );
 }

@@ -73,7 +73,7 @@ export function StaffCourtCard({
               </div>
             )}
           </div>
-          <Button size="sm" className={cx('button-small', staffStyles, sharedStyles)} onClick={onCallNext} disabled={!canStart || busy}>
+          <Button size="sm" className={cx('button-small court-call-next-button', staffStyles, sharedStyles)} onClick={onCallNext} disabled={!canStart || busy}>
             Call next <ArrowRight size={15} />
           </Button>
         </div>

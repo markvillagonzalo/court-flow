@@ -4,7 +4,7 @@ import { ArrowRight, BadgeCheck, Check, Clock3, QrCode, ShieldCheck } from 'luci
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
 import homeStyles from './home.module.css';
-import { Brand, SiteHeader } from '../../shared/components/Navigation';
+import { SiteFooter, SiteHeader } from '../../shared/components/Navigation';
 import { Button, Card, PageContainer } from '../../shared/components/Ui';
 
 export function HomePage() {
@@ -76,7 +76,7 @@ export function HomePage() {
         <div><div className={cx('eyebrow', homeStyles, sharedStyles)}>YOUR COURT. YOUR FLOW.</div><h2>Make room for one more game.</h2></div>
         <Link to="/staff" className={cx('ui-button ui-button-secondary button', homeStyles, sharedStyles)}>Open staff dashboard <ArrowRight size={17} /></Link>
       </Card>
-      <footer className={cx('site-footer', homeStyles, sharedStyles)}><Brand /><span>Built for the next game.</span><span>© CourtFlow · Local preview</span></footer>
+      <SiteFooter />
     </main>
   );
 }

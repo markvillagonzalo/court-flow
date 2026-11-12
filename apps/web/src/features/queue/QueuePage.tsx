@@ -3,13 +3,14 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import type { PublicSnapshot } from '@court-flow/contracts';
 import { getPlayerToken } from '../../shared/api/client';
-import { Brand, SiteHeader } from '../../shared/components/Navigation';
+import { SiteFooter, SiteHeader } from '../../shared/components/Navigation';
 import { ErrorPanel, LoadingCard } from '../../shared/components/Feedback';
 import { useSessionRealtime } from '../../shared/hooks/useSessionRealtime';
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
 import queueStyles from './queue.module.css';
 import { queueApi as api } from './api';
+import { RealtimeStatus } from '../../shared/components/RealtimeStatus';
 import { MyTurnCard } from './components/MyTurnCard';
 import { QueueActivityCard } from './components/QueueActivityCard';
 import { QueueSidebar } from './components/QueueSidebar';
@@ -83,20 +84,24 @@ export function QueuePage() {
             <div className={cx('queue-title-row', queueStyles, sharedStyles)}>
               <div>
                 <div className={cx('eyebrow', queueStyles, sharedStyles)}>
-                  <span className={cx('live-label', queueStyles, sharedStyles)}><i /> LIVE QUEUE</span>
+                  <StatusPill
+                    tone={snapshot.session.state === 'open' ? 'live' : 'warning'}
+                    className={cx('connection-pill', queueStyles, sharedStyles)}
+                  >
+                    {snapshot.session.state === 'open' ? 'LIVE QUEUE' : 'SESSION CLOSED'}
+                  </StatusPill>
                   <span className={cx('eyebrow-spacer', queueStyles, sharedStyles)}>·</span>{snapshot.session.sport.toUpperCase()}
                 </div>
                 <h1>{snapshot.session.name}</h1>
                 <p>Every turn is visible. Every player gets a fair place.</p>
               </div>
-              <StatusPill tone={connected ? 'live' : 'warning'} className={cx('connection-pill', queueStyles, sharedStyles)}>
-                {connected ? 'Live updates on' : 'Reconnecting'}
-              </StatusPill>
+              <RealtimeStatus connected={connected} className={cx('queue-realtime-status', queueStyles)} />
             </div>
             <div className={cx('queue-layout', queueStyles, sharedStyles)}>
               <section className={cx('queue-main-column', queueStyles, sharedStyles)}>
                 <MyTurnCard
                   ticket={myTicket}
+                  sessionOpen={snapshot.session.state === 'open'}
                   name={name}
                   joining={joining}
                   onNameChange={setName}
@@ -114,10 +119,10 @@ export function QueuePage() {
               </section>
               <QueueSidebar snapshot={snapshot} />
             </div>
-            <footer className={cx('queue-footer', queueStyles, sharedStyles)}><Brand /><span>Good flow, better play.</span><span>Session {snapshot.session.publicCode}</span></footer>
           </>
         ) : <ErrorPanel error={error || 'Queue not found.'} onRetry={() => void refresh()} />}
       </PageContainer>
+      <SiteFooter rightContent={snapshot ? `Session ${snapshot.session.publicCode}` : undefined} />
     </main>
   );
 }

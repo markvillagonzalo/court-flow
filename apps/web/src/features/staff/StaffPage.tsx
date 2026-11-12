@@ -1,14 +1,14 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
-import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LockKeyhole, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
 import { getStaffToken } from '../../shared/api/client';
 import { staffApi as api } from './api';
 import type { StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
 import staffStyles from './staff.module.css';
-import { Brand, SiteHeader } from '../../shared/components/Navigation';
+import { SiteFooter, SiteHeader } from '../../shared/components/Navigation';
 import { ErrorPanel, LoadingCard } from '../../shared/components/Feedback';
 import { MetricCard } from './components/MetricCard';
 import { StaffActionModals, type QueueReasonAction } from './components/StaffActionModals';
@@ -18,6 +18,7 @@ import { useSessionRealtime } from '../../shared/hooks/useSessionRealtime';
 import { SessionCheckInCard } from './components/SessionCheckInCard';
 import { ActivityRecord } from './components/ActivityRecord';
 import { Button, Dialog, PageContainer, StatusPill } from '../../shared/components/Ui';
+import { RealtimeStatus } from '../../shared/components/RealtimeStatus';
 
 export function StaffPage() {
   const navigate = useNavigate();
@@ -185,7 +186,7 @@ export function StaffPage() {
       <main className={cx('staff-page staff-login-page', staffStyles, sharedStyles)}>
         <SiteHeader subtle />
         <Dialog
-          title="Local venue access"
+          title="Staff sign in"
           size="sm"
           onClose={() => navigate('/')}
           className={cx('staff-login-card', staffStyles, sharedStyles)}
@@ -200,10 +201,7 @@ export function StaffPage() {
           >
             <X size={18} aria-hidden="true" />
           </Button>
-          <div className={cx('login-icon', staffStyles, sharedStyles)} aria-hidden="true"><LockKeyhole size={22} /></div>
-          <div className={cx('eyebrow', staffStyles, sharedStyles)}>LOCAL VENUE ACCESS</div>
           <h1>Welcome back,<br />court captain.</h1>
-          <p>Sign in to open the queue, manage courts, and call the next game.</p>
           <form onSubmit={login}>
             <label htmlFor="staff-pin">Staff PIN</label>
             <input id="staff-pin" type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter your PIN" required />
@@ -212,13 +210,8 @@ export function StaffPage() {
             </Button>
           </form>
           {error && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{error}</div>}
-          <div className={cx('login-local-note', staffStyles, sharedStyles)}>
-            <span className={cx('login-local-icon', staffStyles, sharedStyles)}>
-              <ShieldCheck size={17} aria-hidden="true" />
-            </span>
-            <span>Local development access. Your PIN stays on this computer.</span>
-          </div>
         </Dialog>
+        <SiteFooter />
       </main>
     );
   }
@@ -302,7 +295,6 @@ export function StaffPage() {
               </div>
               <StaffQueuePanel
                 queue={queue}
-                version={snapshot.session.version}
                 busy={busy}
                 onAction={(type, ticket) => {
                   setReasonAction({ type, ticket });
@@ -317,19 +309,8 @@ export function StaffPage() {
             </aside>
           </div>
         </> : <ErrorPanel error="No session selected yet." onRetry={() => token && void loadSessions(token)} />}
-        <footer className={cx("queue-footer staff-footer", staffStyles, sharedStyles)}>
-          <Brand />
-          <span>Venue controls · Local preview</span>
-          <span
-            className={cx(`staff-sync-status ${realtimeConnected ? 'is-connected' : 'is-reconnecting'}`, staffStyles, sharedStyles)}
-            role="status"
-            aria-live="polite"
-          >
-            <i aria-hidden="true" />
-            {realtimeConnected ? 'Live updates on' : 'Reconnecting'}
-          </span>
-        </footer>
       </PageContainer>
+      <SiteFooter rightContent={<RealtimeStatus connected={realtimeConnected} />} />
       {showCreate && (
         <Dialog title="Start a session" size="md" onClose={() => setShowCreate(false)}>
           <form className={cx('create-session-card', staffStyles, sharedStyles)} onSubmit={createSession}>
