@@ -4,12 +4,13 @@ import QRCode from 'qrcode';
 import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
 import { getStaffToken } from '../../shared/api/client';
 import { staffApi as api } from './api';
-import type { MatchSide, StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
+import type { Court, MatchSide, StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
 import staffStyles from './staff.module.css';
 import { SiteFooter, SiteHeader } from '../../shared/components/Navigation';
 import { ErrorPanel, LoadingCard } from '../../shared/components/Feedback';
+import { useToast } from '../../shared/components/ToastProvider';
 import { MetricCard } from './components/MetricCard';
 import { StaffActionModals, type QueueReasonAction } from './components/StaffActionModals';
 import { StaffCourtCard } from './components/StaffCourtCard';
@@ -25,12 +26,17 @@ export function StaffPage() {
   const [token, setToken] = useState(getStaffToken());
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [reasonError, setReasonError] = useState('');
+  const [matchError, setMatchError] = useState('');
   const [sessions, setSessions] = useState<StaffSessionListItem[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [snapshot, setSnapshot] = useState<StaffSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCopyLink, setShowCopyLink] = useState(false);
   const [sessionName, setSessionName] = useState('Evening Open Play');
   const [sport, setSport] = useState('Pickleball');
   const [courtCount, setCourtCount] = useState(3);
@@ -42,6 +48,8 @@ export function StaffPage() {
   const [returning, setReturning] = useState<string[]>([]);
   const [winningSide, setWinningSide] = useState<MatchSide | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<Court | null>(null);
+  const toast = useToast();
 
   async function loadSessions(currentToken: string) {
     try {
@@ -93,6 +101,8 @@ export function StaffPage() {
 
   async function login(event: FormEvent) {
     event.preventDefault();
+    setLoginError('');
+    setError('');
     try {
       setBusy(true);
       const result = await api.login(pin);
@@ -100,8 +110,9 @@ export function StaffPage() {
       setToken(result.token);
       setPin('');
       setError('');
+      toast.success('Staff signed in.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
+      setLoginError(err instanceof Error ? err.message : 'Could not sign in.');
     } finally {
       setBusy(false);
     }
@@ -110,31 +121,39 @@ export function StaffPage() {
   async function createSession(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
+    setCreateError('');
     setBusy(true);
     try {
       const created = await api.createSession(token, { name: sessionName, sport, courtCount, playersPerGame: gameSize });
-      const next = await api.listSessions(token);
-      setSessions(next);
       setSelectedId(created.id);
       setShowCreate(false);
-      setError('');
+      toast.success('Session created.');
+      await loadSessions(token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the session.');
+      setCreateError(err instanceof Error ? err.message : 'Could not create the session.');
     } finally {
       setBusy(false);
     }
   }
 
-  async function perform(action: () => Promise<StaffSnapshot>) {
+  async function perform(
+    action: () => Promise<StaffSnapshot>,
+    successMessage: string,
+    onFailure: (message: string) => void = toast.error,
+  ): Promise<boolean> {
+    if (!token) return false;
     setBusy(true);
     setError('');
     try {
       const next = await action();
       setSnapshot(next);
-      await loadSessions(token!);
+      await loadSessions(token);
+      toast.success(successMessage);
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action could not be completed.');
+      onFailure(err instanceof Error ? err.message : 'Action could not be completed.');
       await loadSnapshot();
+      return false;
     } finally {
       setBusy(false);
     }
@@ -146,13 +165,26 @@ export function StaffPage() {
     if (reason.trim().length < 3) return;
     const action = reasonAction;
     const cleanReason = reason.trim();
-    setReasonAction(null);
-    setReason('');
+    setReasonError('');
+    let succeeded: boolean;
     if (action.type === 'skip') {
-      await perform(() => api.skipTicket(token, snapshot.session.id, action.ticket.id, { reason: cleanReason }));
+      succeeded = await perform(
+        () => api.skipTicket(token, snapshot.session.id, action.ticket.id, { reason: cleanReason }),
+        `Skipped ${action.ticket.displayName}.`,
+        setReasonError,
+      );
     } else {
       const target = action.type === 'front' ? 'front' : 'back';
-      await perform(() => api.reorderTicket(token, snapshot.session.id, action.ticket.id, { target, reason: cleanReason }));
+      succeeded = await perform(
+        () => api.reorderTicket(token, snapshot.session.id, action.ticket.id, { target, reason: cleanReason }),
+        `Moved ${action.ticket.displayName} to the ${target}.`,
+        setReasonError,
+      );
+    }
+    if (succeeded) {
+      setReasonAction(null);
+      setReason('');
+      setReasonError('');
     }
   }
 
@@ -168,21 +200,43 @@ export function StaffPage() {
     const match = activeMatch;
     const returnIds = [...returning];
     const resultSide = winningSide;
-    setActiveMatch(null);
-    setWinningSide(null);
-    await perform(() => api.completeMatch(token, match.id, { returningPlayerIds: returnIds, winnerSide: resultSide }));
+    setMatchError('');
+    const succeeded = await perform(
+      () => api.completeMatch(token, match.id, { returningPlayerIds: returnIds, winnerSide: resultSide }),
+      'Game completed.',
+      setMatchError,
+    );
+    if (succeeded) {
+      setActiveMatch(null);
+      setWinningSide(null);
+      setMatchError('');
+    }
   }
 
   async function copyJoinLink() {
     if (!snapshot) return;
     const url = `${window.location.origin}/join/${snapshot.session.publicCode}`;
     try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable.');
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt('Copy this local queue link', url);
+      setShowCopyLink(true);
+      return;
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  function confirmRemoveCourt() {
+    if (!pendingRemoval || !token) return;
+    const court = snapshot?.courts.find((item) => item.id === pendingRemoval.id);
+    if (!court || court.state !== 'available') {
+      setPendingRemoval(null);
+      toast.error('That court is no longer available to remove.');
+      return;
+    }
+    setPendingRemoval(null);
+    void perform(() => api.removeCourt(token, court.id), `${court.label} removed.`);
   }
 
   if (!token) {
@@ -213,7 +267,7 @@ export function StaffPage() {
               {busy ? <LoaderCircle className={cx('spin', staffStyles, sharedStyles)} size={17} /> : <>Open dashboard <ArrowRight size={17} /></>}
             </Button>
           </form>
-          {error && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{error}</div>}
+          {(loginError || error) && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{loginError || error}</div>}
         </Dialog>
         <SiteFooter />
       </main>
@@ -261,7 +315,7 @@ export function StaffPage() {
               <ChevronDown size={17} aria-hidden="true" />
             </div>
           </div>
-          <Button className={cx('session-create-button', staffStyles, sharedStyles)} onClick={() => setShowCreate(true)}><Plus size={17} aria-hidden="true" /> New session</Button>
+          <Button className={cx('session-create-button', staffStyles, sharedStyles)} onClick={() => { setCreateError(''); setShowCreate(true); }}><Plus size={17} aria-hidden="true" /> New session</Button>
         </div>
         {loading && !snapshot ? <LoadingCard label="Loading venue controls…" /> : snapshot ? <>
           <div className={cx("staff-metrics-grid", staffStyles, sharedStyles)}><MetricCard label="WAITING" value={snapshot.waitingCount} detail="players in line" icon={<UsersRound size={18} />} color="lime" /><MetricCard label="COURTS OPEN" value={availableCourts.length} detail={`of ${snapshot.courts.length} courts`} icon={<Flag size={18} />} color="blue" /><MetricCard label="GAME SIZE" value={snapshot.session.playersPerGame} detail="players per game" icon={<Crown size={18} />} color="peach" /><MetricCard label="SESSION STATUS" value={snapshot.session.state === 'open' ? 'LIVE' : 'CLOSED'} detail={snapshot.session.sport} icon={<Radio size={18} />} color="green" /></div>
@@ -277,24 +331,20 @@ export function StaffPage() {
                     waitingCount={queue.length}
                     playersPerGame={snapshot.session.playersPerGame}
                     busy={busy}
-                    onRemove={() => void perform(() => api.removeCourt(token, court.id))}
-                    onCallNext={() => void perform(() => api.callNext(token, snapshot.session.id, court.id))}
+                    onRemove={() => setPendingRemoval(court)}
+                    onCallNext={() => void perform(
+                      () => api.callNext(token, snapshot.session.id, court.id),
+                      `Players called to ${court.label}.`,
+                    )}
                     onFinish={startCompleting}
                   />
                 ))}
                 <Button variant="quiet" className={cx('add-court-card', staffStyles, sharedStyles)} onClick={() => {
                   const next = snapshot.courts.length + 1;
-                  void (async () => {
-                    setBusy(true);
-                    try {
-                      setSnapshot(await api.addCourt(token, snapshot.session.id, { label: 'Court ' + next }));
-                      await loadSessions(token);
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : 'Could not add a court.');
-                    } finally {
-                      setBusy(false);
-                    }
-                  })();
+                  void perform(
+                    () => api.addCourt(token, snapshot.session.id, { label: 'Court ' + next }),
+                    `Court ${next} added.`,
+                  );
                 }} disabled={busy}><span><Plus size={18} /></span>Add a court</Button>
               </div>
               <StaffQueuePanel
@@ -315,12 +365,46 @@ export function StaffPage() {
         </> : <ErrorPanel error="No session selected yet." onRetry={() => token && void loadSessions(token)} />}
       </PageContainer>
       <SiteFooter rightContent={<RealtimeStatus connected={realtimeConnected} />} />
+      {pendingRemoval && (
+        <Dialog title={`Remove ${pendingRemoval.label}?`} size="sm" onClose={() => setPendingRemoval(null)}>
+          <div className={cx('reason-modal confirm-court-modal', staffStyles, sharedStyles)}>
+            <div className={cx('modal-icon', staffStyles, sharedStyles)}><X size={19} /></div>
+            <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setPendingRemoval(null)}><X size={18} /></Button>
+            <div className={cx('eyebrow', staffStyles, sharedStyles)}>COURT CONTROL</div>
+            <h2>Remove {pendingRemoval.label}?</h2>
+            <p>This available court will be removed from the current session. You can add another court later.</p>
+            <div className={cx('confirm-court-actions', staffStyles, sharedStyles)}>
+              <Button type="button" variant="quiet" onClick={() => setPendingRemoval(null)}>Cancel</Button>
+              <Button type="button" variant="danger" onClick={confirmRemoveCourt} disabled={busy}>Remove court</Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+      {showCopyLink && snapshot && (
+        <Dialog title="Copy join link" size="sm" onClose={() => setShowCopyLink(false)}>
+          <div className={cx('reason-modal copy-link-modal', staffStyles, sharedStyles)}>
+            <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCopyLink(false)}><X size={18} /></Button>
+            <div className={cx('eyebrow', staffStyles, sharedStyles)}>SHARE QUEUE</div>
+            <h2>Copy join link</h2>
+            <p>Clipboard access is unavailable. Select the link below and copy it.</p>
+            <label htmlFor="copy-join-link">Queue link</label>
+            <textarea
+              id="copy-join-link"
+              value={`${window.location.origin}/join/${snapshot.session.publicCode}`}
+              readOnly
+              rows={3}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <Button type="button" className={cx('button-full', staffStyles, sharedStyles)} onClick={() => setShowCopyLink(false)}>Done</Button>
+          </div>
+        </Dialog>
+      )}
       {showCreate && (
-        <Dialog title="Start a session" size="md" onClose={() => setShowCreate(false)}>
+        <Dialog title="Start a session" size="md" onClose={() => { if (!busy) setShowCreate(false); }}>
           <form className={cx('create-session-card', staffStyles, sharedStyles)} onSubmit={createSession}>
             <div className={cx('create-session-heading', staffStyles, sharedStyles)}>
               <div><div className={cx('eyebrow', staffStyles, sharedStyles)}>SET UP OPEN PLAY</div><h2>Start a session</h2></div>
-              <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCreate(false)}><X size={18} /></Button>
+              <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCreate(false)} disabled={busy}><X size={18} /></Button>
             </div>
             <div className={cx('create-fields', staffStyles, sharedStyles)}>
               <label>Session name<input value={sessionName} onChange={(event) => setSessionName(event.target.value)} maxLength={60} required /></label>
@@ -329,16 +413,19 @@ export function StaffPage() {
               <label>Players per game<select value={gameSize} onChange={(event) => setGameSize(Number(event.target.value) as 2 | 4)}><option value={2}>2 players</option><option value={4}>4 players</option></select></label>
             </div>
             <div className={cx('create-session-actions', staffStyles, sharedStyles)}><span>Creates a fresh, shareable queue code.</span><Button disabled={busy}>Create session <ArrowRight size={16} /></Button></div>
+            {createError && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{createError}</div>}
           </form>
         </Dialog>
       )}
       <StaffActionModals
         reasonAction={reasonAction}
         reason={reason}
+        reasonError={reasonError}
+        matchError={matchError}
         busy={busy}
-        onReasonChange={setReason}
+        onReasonChange={(value) => { setReason(value); setReasonError(''); }}
         onReasonSubmit={submitReason}
-        onReasonClose={() => setReasonAction(null)}
+        onReasonClose={() => { if (!busy) { setReasonAction(null); setReasonError(''); } }}
         activeMatch={activeMatch}
         returningPlayerIds={returning}
         winningSide={winningSide}
@@ -346,7 +433,7 @@ export function StaffPage() {
           ? [...current, playerId]
           : current.filter((id) => id !== playerId))}
         onWinningSideChange={setWinningSide}
-        onMatchClose={() => setActiveMatch(null)}
+        onMatchClose={() => { if (!busy) { setActiveMatch(null); setMatchError(''); } }}
         onMatchComplete={() => void finishMatch()}
       />
     </main>

@@ -15,6 +15,8 @@ export type QueueReasonAction = {
 type Props = {
   reasonAction: QueueReasonAction | null;
   reason: string;
+  reasonError: string;
+  matchError: string;
   busy: boolean;
   onReasonChange: (value: string) => void;
   onReasonSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -31,6 +33,8 @@ type Props = {
 export function StaffActionModals({
   reasonAction,
   reason,
+  reasonError,
+  matchError,
   busy,
   onReasonChange,
   onReasonSubmit,
@@ -54,7 +58,7 @@ export function StaffActionModals({
         >
           <form className={cx('reason-form', staffStyles, sharedStyles)} onSubmit={onReasonSubmit}>
             <div className={cx('modal-icon', staffStyles, sharedStyles)}><Flag size={19} /></div>
-            <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={onReasonClose}><X size={18} /></Button>
+            <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={onReasonClose} disabled={busy}><X size={18} /></Button>
             <div className={cx('eyebrow', staffStyles, sharedStyles)}>TRANSPARENT QUEUE</div>
             <h2>{reasonAction.type === 'skip' ? 'Skip this player?' : reasonAction.type === 'front' ? 'Move to the front?' : 'Move to the back?'}</h2>
             <p>{reasonAction.ticket.displayName} will see this change in the queue activity record.</p>
@@ -68,6 +72,7 @@ export function StaffActionModals({
               placeholder={reasonAction.type === 'skip' ? 'e.g. Not present when called' : 'e.g. Venue accommodation'}
               required
             />
+            {reasonError && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{reasonError}</div>}
             <span className={cx('reason-count', staffStyles, sharedStyles)}>{reason.length}/240</span>
             <Button className={cx('button-full', staffStyles, sharedStyles)} disabled={busy || reason.trim().length < 3}>
               Confirm change <ArrowRight size={16} />
@@ -83,7 +88,7 @@ export function StaffActionModals({
           className={cx('reason-modal reason-modal-responsive finish-modal', staffStyles, sharedStyles)}
         >
           <div className={cx('modal-icon modal-icon-green', staffStyles, sharedStyles)}><Check size={19} /></div>
-          <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={onMatchClose}><X size={18} /></Button>
+          <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={onMatchClose} disabled={busy}><X size={18} /></Button>
           <div className={cx('eyebrow', staffStyles, sharedStyles)}>GAME COMPLETE · {activeMatch.courtLabel}</div>
           <h2>Record the result</h2>
           <p>Choose the winning side. Players who stay return to the back of the line.</p>
@@ -124,6 +129,7 @@ export function StaffActionModals({
               </label>
             ))}
           </div>
+          {matchError && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{matchError}</div>}
           <Button className={cx('button-full', staffStyles, sharedStyles)} onClick={onMatchComplete} disabled={busy || winningSide === null}>
             Close game &amp; open court <ArrowRight size={16} />
           </Button>

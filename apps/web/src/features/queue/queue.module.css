@@ -171,13 +171,13 @@
 .queue-realtime-status { align-self: center; }
 .queue-title-row h1 { max-width: 18ch; text-wrap: balance; overflow-wrap: anywhere; }
 
-.my-turn-card { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .9fr); align-items: center; gap: clamp(22px, 3.4vw, 44px); min-height: 220px; padding: clamp(24px, 3vw, 34px); }
+.my-turn-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 1.2fr); align-items: center; gap: clamp(22px, 3.4vw, 44px); min-height: 220px; padding: clamp(24px, 3vw, 34px); }
 .my-turn-copy { min-width: 0; }
 .my-turn-copy h2 { align-items: center; flex-wrap: wrap; gap: 10px; margin: 12px 0 8px; line-height: .98; }
 .my-turn-copy p { max-width: 44ch; font-size: 12px; line-height: 1.55; }
 .position-number { font-size: clamp(62px, 6vw, 76px); }
 .position-text { line-height: 1; }
-.turn-action { width: 100%; min-width: 0; max-width: 360px; justify-self: end; }
+.turn-action { width: 100%; min-width: 0; max-width: 420px; justify-self: end; }
 .inline-join-form { width: 100%; }
 .inline-join-control { width: 100%; min-height: 56px; gap: 7px; padding: 6px; }
 .inline-join-control input { min-width: 0; height: 44px; }
@@ -331,11 +331,10 @@
 /* The name field and action stay together on wide screens and stack on phones. */
 .inline-join-form label {
   margin-bottom: 10px;
-  color: #fff9e9;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: .07em;
-  text-transform: uppercase;
+  color: #f4f1e8;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .01em;
 }
 .inline-join-control {
   display: grid;
@@ -349,20 +348,21 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 54px;
-  gap: 10px;
-  padding: 0 14px;
-  border: 1px solid rgba(255,255,255,.48);
-  border-radius: 5px;
+  min-height: 56px;
+  gap: 11px;
+  padding: 0 13px;
+  border: 1px solid #d8ddd3;
+  border-radius: 10px;
   color: #77867b;
-  background: #fffefa;
+  background: var(--paper);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 .join-name-field:focus-within {
-  border-color: #f3d76b;
-  box-shadow: 0 0 0 3px rgba(243,215,107,.2);
+  border-color: #90a395;
+  box-shadow: 0 0 0 3px rgba(144,163,149,.28);
 }
-.join-name-field svg { flex: 0 0 auto; color: #87958a; }
+.join-name-field input:focus-visible { outline: none; }
+.join-name-field svg { flex: 0 0 auto; color: #718c76; }
 .join-name-field input {
   width: 100%;
   min-width: 0;
@@ -372,7 +372,7 @@
   background: transparent;
   font-size: 14px;
 }
-.join-name-field input::placeholder { color: #879187; }
+.join-name-field input::placeholder { color: #69766f; }
 .inline-join-control .button { min-width: 128px; min-height: 54px; border-radius: 5px; }
 .join-name-hint { margin: 9px 0 0 2px; color: #dbe5d9; font-size: 10px; }
 
@@ -389,7 +389,7 @@
   .public-queue-row { min-height: 80px; gap: 12px; padding: 11px 12px; }
   .public-next-row::before { left: 0; }
   .inline-join-control { grid-template-columns: minmax(0, 1fr); gap: 9px; }
-  .join-name-field { min-height: 52px; }
+  .join-name-field { min-height: 56px; }
   .inline-join-control .button { width: 100%; min-height: 50px; }
 }
 
@@ -400,7 +400,7 @@
   .queue-side-column { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .now-playing-card, .session-code-card { grid-column: 1 / -1; }
   .queue-main-column, .queue-side-column, .queue-title-row > div:first-child { min-width: 0; }
-  .my-turn-card { grid-template-columns: minmax(0, 1.15fr) minmax(240px, .9fr); gap: 24px; }
+  .my-turn-card { grid-template-columns: minmax(0, 1fr) minmax(320px, 1.2fr); gap: 24px; }
 }
 @media (max-width: 760px) {
   .queue-page-shell.page-container-standard { width: min(calc(100% - 32px), 640px); }

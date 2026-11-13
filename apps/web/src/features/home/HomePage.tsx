@@ -9,6 +9,7 @@ import { Button, Card, PageContainer } from '../../shared/components/Ui';
 
 export function HomePage() {
   const [code, setCode] = useState('demo');
+  const [codeError, setCodeError] = useState('');
   const navigate = useNavigate();
 
   return (
@@ -23,14 +24,21 @@ export function HomePage() {
             className={cx('join-code-form', homeStyles, sharedStyles)}
             onSubmit={(event) => {
               event.preventDefault();
-              if (code.trim()) navigate(`/join/${encodeURIComponent(code.trim().toLowerCase())}`);
+              const cleanCode = code.trim();
+              if (!cleanCode) {
+                setCodeError('Enter a queue code to continue.');
+                return;
+              }
+              setCodeError('');
+              navigate(`/join/${encodeURIComponent(cleanCode.toLowerCase())}`);
             }}
           >
             <label htmlFor="queue-code">Have a queue code?</label>
             <div className={cx('join-code-row', homeStyles, sharedStyles)}>
-              <div className={cx('code-input-wrap', homeStyles, sharedStyles)}><QrCode size={18} aria-hidden="true" /><input id="queue-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Enter code" /></div>
+              <div className={cx(`code-input-wrap ${codeError ? 'has-error' : ''}`, homeStyles, sharedStyles)}><QrCode size={18} aria-hidden="true" /><input id="queue-code" value={code} onChange={(event) => { setCode(event.target.value); if (event.target.value.trim()) setCodeError(''); }} placeholder="Enter code" aria-required="true" aria-invalid={Boolean(codeError)} aria-describedby={codeError ? 'queue-code-error' : undefined} /></div>
               <Button className={cx('join-submit', homeStyles, sharedStyles)} type="submit">Join queue <ArrowRight size={17} /></Button>
             </div>
+            {codeError && <p id="queue-code-error" className={cx('join-code-error', homeStyles, sharedStyles)} role="alert">{codeError}</p>}
           </form>
           <div className={cx('hero-note', homeStyles, sharedStyles)}><ShieldCheck size={16} aria-hidden="true" /> No app install. No account. Just scan and play.</div>
         </div>

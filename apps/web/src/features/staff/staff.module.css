@@ -128,6 +128,8 @@
 .reason-modal p { color: #5c6a61; font-size: 12px; line-height: 1.6; }
 .reason-modal textarea { min-height: 96px; padding: 12px; font-size: 13px; }
 .reason-modal .button-full { width: 100%; }
+.confirm-court-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.copy-link-modal textarea { width: 100%; min-height: 84px; overflow-wrap: anywhere; resize: vertical; }
 .reason-form { display: block; }
 .modal-icon { width: 42px; height: 42px; border-radius: 4px; color: #fff; background: var(--accent); }
 .modal-icon-green { background: var(--green); }

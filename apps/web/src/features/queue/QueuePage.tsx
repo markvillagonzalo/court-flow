@@ -5,6 +5,7 @@ import type { PublicSnapshot } from '@court-flow/contracts';
 import { getPlayerToken } from '../../shared/api/client';
 import { SiteFooter, SiteHeader } from '../../shared/components/Navigation';
 import { ErrorPanel, LoadingCard } from '../../shared/components/Feedback';
+import { useToast } from '../../shared/components/ToastProvider';
 import { useSessionRealtime } from '../../shared/hooks/useSessionRealtime';
 import { cx } from '../../shared/lib/classNames';
 import sharedStyles from '../../shared/styles/components.module.css';
@@ -26,6 +27,7 @@ export function QueuePage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
   const token = getPlayerToken(code);
 
   const refresh = async (quiet = false) => {
@@ -52,6 +54,7 @@ export function QueuePage() {
     setError('');
     try {
       await api.join(code, name);
+      toast.success('You joined the queue.');
       await refresh(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not join the queue.');
@@ -65,10 +68,15 @@ export function QueuePage() {
     setJoining(true);
     try {
       const result = await api.withdraw(token);
-      if (result.status === 'left') localStorage.removeItem(`courtflow:player:${code}`);
+      if (result.status === 'left') {
+        localStorage.removeItem(`courtflow:player:${code}`);
+        toast.success('You left the queue.');
+      } else {
+        toast.success('You will leave after this game.');
+      }
       await refresh(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update your ticket.');
+      toast.error(err instanceof Error ? err.message : 'Could not update your ticket.');
     } finally {
       setJoining(false);
     }
