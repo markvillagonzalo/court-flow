@@ -8,7 +8,7 @@
     "build": "npm run build --workspace @court-flow/contracts && tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "db:setup": "npm run build && node dist/infrastructure/database/setup-db.js",
-    "test": "npm run build && node dist/modules/queue/queue-rules.test.js && node dist/modules/matches/match-rules.test.js"
+    "test": "npm run build && node dist/modules/queue/queue-rules.test.js && node dist/modules/matches/match-rules.test.js && node dist/modules/auth/auth.service.test.js && node dist/security/security.test.js && node dist/security/http-security.test.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",

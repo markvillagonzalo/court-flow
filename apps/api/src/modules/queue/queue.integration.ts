@@ -1,4 +1,5 @@
 import '../../env';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -84,6 +85,96 @@ async function verifyLegacyMatchMigration(db: DatabaseService) {
     await client.query('RESET search_path').catch(() => undefined);
     await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
     client.release();
+  }
+}
+
+async function verifySessionDeletion(
+  db: DatabaseService,
+  sessions: SessionsService,
+  queue: QueueService,
+  realtimeEvents: { code: string; version: number }[],
+) {
+  const created = await sessions.createSession({
+    name: 'Deletion integration',
+    sport: 'Pickleball',
+    courtCount: 1,
+    playersPerGame: 2,
+  });
+  try {
+    const ticket = await queue.join(created.publicCode, randomUUID(), 'Deletion player');
+    const snapshot = await sessions.getStaffSnapshot(created.id);
+    const courtId = snapshot.courts[0].id;
+    const completedMatchId = randomUUID();
+    const activeMatchId = randomUUID();
+
+    await db.query(
+      `INSERT INTO matches (id, session_id, court_id, status, finished_at, winner_side)
+       VALUES ($1, $2, $3, 'completed', now(), 1)`,
+      [completedMatchId, created.id, courtId],
+    );
+    await db.query(
+      'INSERT INTO match_players (match_id, ticket_id, side) VALUES ($1, $2, 1)',
+      [completedMatchId, ticket.id],
+    );
+    await db.query(
+      "INSERT INTO matches (id, session_id, court_id, status) VALUES ($1, $2, $3, 'playing')",
+      [activeMatchId, created.id, courtId],
+    );
+
+    await assert.rejects(
+      sessions.deleteSession(created.id),
+      (error: unknown) => error instanceof ConflictException,
+      'deletion must be rejected while a match is active',
+    );
+    const preserved = await db.query(
+      `SELECT
+         (SELECT count(*)::int FROM sessions WHERE id = $1) AS sessions,
+         (SELECT count(*)::int FROM matches WHERE session_id = $1) AS matches,
+         (SELECT count(*)::int FROM player_tickets WHERE session_id = $1) AS tickets`,
+      [created.id],
+    );
+    assert.deepEqual(preserved.rows[0], { sessions: 1, matches: 2, tickets: 1 }, 'rejected deletion leaves all session data intact');
+
+    await db.query("UPDATE matches SET status = 'completed', finished_at = now(), winner_side = 2 WHERE id = $1", [activeMatchId]);
+    await db.query(
+      `INSERT INTO command_receipts (session_id, command_key, response_json)
+       VALUES ($1, 'delete-integration-command', '{}'::jsonb)`,
+      [created.id],
+    );
+    const eventCount = realtimeEvents.length;
+    await sessions.deleteSession(created.id);
+
+    const removed = await db.query(
+      `SELECT
+         (SELECT count(*)::int FROM sessions WHERE id = $1) AS sessions,
+         (SELECT count(*)::int FROM courts WHERE session_id = $1) AS courts,
+         (SELECT count(*)::int FROM matches WHERE session_id = $1) AS matches,
+         (SELECT count(*)::int FROM match_players WHERE match_id = $2) AS match_players,
+         (SELECT count(*)::int FROM player_tickets WHERE session_id = $1) AS tickets,
+         (SELECT count(*)::int FROM audit_events WHERE session_id = $1) AS events,
+         (SELECT count(*)::int FROM command_receipts WHERE session_id = $1) AS receipts`,
+      [created.id, completedMatchId],
+    );
+    assert.deepEqual(
+      removed.rows[0],
+      { sessions: 0, courts: 0, matches: 0, match_players: 0, tickets: 0, events: 0, receipts: 0 },
+      'deleting a session removes all of its data',
+    );
+    assert.ok(
+      realtimeEvents.slice(eventCount).some((event) => event.code === created.publicCode),
+      'deleting a session announces a final update to connected queue clients',
+    );
+    await assert.rejects(sessions.getPublicSnapshot(created.publicCode), /Queue session not found/);
+    await assert.rejects(
+      sessions.deleteSession(created.id),
+      (error: unknown) => error instanceof NotFoundException,
+      'deleting an unknown session returns not found',
+    );
+    return created.id;
+  } finally {
+    await db.query('DELETE FROM matches WHERE session_id = $1', [created.id]);
+    await db.query('DELETE FROM player_tickets WHERE session_id = $1', [created.id]);
+    await db.query('DELETE FROM sessions WHERE id = $1', [created.id]);
   }
 }
 
@@ -248,6 +339,8 @@ async function main() {
     const recoveredView = await sessions.getPublicSnapshot(created.publicCode);
     assert.ok(recoveredView.session.version > lastSeenVersion, 'a reconnect snapshot includes revisions missed while offline');
     assert.ok(recoveredView.queue.some((ticket) => ticket.displayName === 'Returned after disconnect'));
+
+    await verifySessionDeletion(db, sessions, queue, realtimeEvents);
     console.log('PostgreSQL queue integration smoke passed.');
   } finally {
     if (sessionId) {

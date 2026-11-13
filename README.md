@@ -20,7 +20,7 @@ The root npm workspace keeps the existing `dev`, `build`, `test`, `test:integrat
 
 ## Start locally
 
-1. Copy `.env.example` to `.env` in the project root. Change `SESSION_SECRET` and `STAFF_PIN` for your local setup.
+1. Copy `.env.example` to `.env` in the project root. Set `STAFF_PIN` to a private 8–12 digit PIN and set `SESSION_SECRET` to a private random value with at least 32 characters. The example values are placeholders and the API refuses to start with them. For example, generate a secret with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
 2. Install the JavaScript dependencies: `npm install`
 3. Start the PostgreSQL container: `npm run db:up`
 4. Start the API and web app: `npm run dev`
@@ -39,13 +39,17 @@ Open the staff page on the development computer using its private Wi-Fi address 
 npm run db:up       # Start local PostgreSQL in Docker
 npm run db:setup    # Create tables and the demo session
 npm run dev         # Start API and Vite web app
-npm run test        # Run queue-rule unit tests
+npm run test        # Run rule and security checks
 npm run test:integration # Run PostgreSQL-backed queue smoke tests
 npm run build       # Type-check and build both apps
 npm run db:down     # Stop the local PostgreSQL container
 ```
 
-The API listens on port `3001`; Vite listens on port `5173` and proxies API and Socket.IO traffic locally. Docker exposes PostgreSQL on local port `5433` (container port `5432`) to avoid clashes with an existing local database. PostgreSQL data persists in the `court-flow-postgres` Docker volume. If you use a native PostgreSQL server, set `DATABASE_URL` in `.env` to its port.
+The API listens on `127.0.0.1:3001`; Vite listens on port `5173` and proxies API and Socket.IO traffic locally. Docker exposes PostgreSQL on local port `5433` (container port `5432`) to avoid clashes with an existing local database, bound to loopback only. PostgreSQL data persists in the `court-flow-postgres` Docker volume. If you use a native PostgreSQL server, set `DATABASE_URL` in `.env` to its port.
+
+For LAN phone testing, set `WEB_ORIGINS` to the exact origin shown in the phone browser, such as `http://192.168.1.25:5173`. The API and database remain reachable only from the development computer; Vite proxies phone traffic and forwards the client IP. The local API trusts that one Vite hop so rate limits remain per phone. For another reverse-proxy setup, set `TRUST_PROXY_HOPS` to the exact number of trusted proxy hops. Never trust forwarded client IP headers directly from the public internet.
+
+Production startup requires explicit HTTPS `WEB_ORIGINS`, a non-placeholder secret and PIN, and a database URL that does not use the sample `postgres` password. Set `API_HOST` to an interface reachable only by the trusted proxy if the API runs in a separate container; the default is loopback. Database setup skips creating the predictable `demo` session and closes any existing demo session in production. The web build includes `public/_headers` for static hosts that support that convention, and Vite dev/preview sends the same Content Security Policy, frame, MIME-sniffing, referrer, and permissions headers. Configure equivalent response headers on other production hosts. HTTP and realtime rate limits are held in process memory, so a multi-instance deployment should also enforce shared limits at its trusted proxy.
 
 `npm run test:integration` requires the local PostgreSQL container to be running. It creates a temporary queue session, exercises parallel check-ins, duplicate staff calls, withdrawals, requeue, skips, and reasoned reordering, then deletes the temporary session.
 

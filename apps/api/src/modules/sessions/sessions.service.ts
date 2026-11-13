@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '../../infrastructure/database/database.service';
 import { SessionTransactionsService } from './session-transactions.service';
@@ -218,6 +218,39 @@ export class SessionsService {
     const session = await this.transactions.sessionById(id);
     this.transactions.announceChange(session.public_code, session.version);
     return { id, publicCode: code };
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const deleted = await this.db.transaction(async (client) => {
+      const sessionResult = await client.query<SessionRow>(
+        'SELECT * FROM sessions WHERE id = $1 FOR UPDATE',
+        [sessionId],
+      );
+      if (!sessionResult.rowCount) throw new NotFoundException('Queue session not found');
+      const session = sessionResult.rows[0];
+
+      const activeMatches = await client.query(
+        "SELECT 1 FROM matches WHERE session_id = $1 AND status = 'playing' LIMIT 1",
+        [sessionId],
+      );
+      if (activeMatches.rowCount) {
+        throw new ConflictException('Finish all matches before deleting this session');
+      }
+
+      // These foreign keys intentionally restrict deleting courts and tickets directly.
+      // Remove the session's match links and matches first, then its player tickets.
+      await client.query(
+        'DELETE FROM match_players WHERE match_id IN (SELECT id FROM matches WHERE session_id = $1)',
+        [sessionId],
+      );
+      await client.query('DELETE FROM matches WHERE session_id = $1', [sessionId]);
+      await client.query('DELETE FROM player_tickets WHERE session_id = $1', [sessionId]);
+      await client.query('DELETE FROM sessions WHERE id = $1', [sessionId]);
+
+      return { publicCode: session.public_code, version: Number(session.version) + 1 };
+    });
+
+    this.transactions.announceChange(deleted.publicCode, deleted.version);
   }
 
   private async ticketForPlayer(sessionId: string, playerId: string) {

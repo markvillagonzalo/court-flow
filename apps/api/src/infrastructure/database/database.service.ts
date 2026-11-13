@@ -1,16 +1,18 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { resolveDatabaseUrl } from '../../security/security-config';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   readonly pool: Pool;
 
   constructor() {
+    const connectionString = resolveDatabaseUrl();
     this.pool = new Pool({
-      connectionString:
-        process.env.DATABASE_URL ??
-        'postgresql://postgres:postgres@localhost:5433/courtflow',
+      connectionString,
       max: 10,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
     });
     this.pool.on('error', (error) => console.error('Unexpected PostgreSQL error', error));
   }

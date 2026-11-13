@@ -1,32 +1,41 @@
 const visitorKey = 'courtflow:visitor-id';
 const staffKey = 'courtflow:staff-token';
 
+function secureUuid() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function getVisitorId() {
   let id = localStorage.getItem(visitorKey);
   if (!id) {
-    id = typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    id = secureUuid();
     localStorage.setItem(visitorKey, id);
   }
   return id;
 }
 
 export function getPlayerToken(code: string) {
-  return localStorage.getItem(`courtflow:player:${code}`) ?? undefined;
+  const key = `courtflow:player:${code}`;
+  localStorage.removeItem(key);
+  return sessionStorage.getItem(key) ?? undefined;
 }
 
 export function getStaffToken() {
-  return localStorage.getItem(staffKey) ?? undefined;
+  localStorage.removeItem(staffKey);
+  return sessionStorage.getItem(staffKey) ?? undefined;
 }
 
 function authHeaders(token?: string, command = false) {
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(command ? {
-      'Idempotency-Key': typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      'Idempotency-Key': secureUuid(),
     } : {}),
   };
 }

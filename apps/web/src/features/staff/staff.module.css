@@ -933,6 +933,86 @@
   }
 }
 
+/* Align queue change dialogs with the responsive session setup form. */
+.reason-modal.reason-modal-responsive .reason-form {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 40px;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading .modal-icon {
+  width: 42px;
+  height: 42px;
+  margin: 0;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading-copy { min-width: 0; }
+.reason-modal.reason-modal-responsive .reason-modal-heading .eyebrow {
+  min-height: 40px;
+  font-size: 9px;
+  line-height: 1.4;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading h2 {
+  max-width: none;
+  margin: 5px 0 7px;
+  font-size: clamp(27px, 6vw, 34px);
+  line-height: 1;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading p {
+  margin: 0;
+  color: #66736b;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading p strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.reason-modal.reason-modal-responsive .reason-modal-heading .modal-close {
+  position: static;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+}
+.reason-modal.reason-modal-responsive .reason-field-label {
+  display: block;
+  margin: 0 0 8px;
+  color: #40554a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.reason-modal.reason-modal-responsive .reason-form textarea {
+  width: 100%;
+  min-height: 112px;
+  height: clamp(112px, 18dvh, 150px);
+  margin: 0;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.reason-modal.reason-modal-responsive .reason-form-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.reason-modal.reason-modal-responsive .reason-form-footer .reason-count {
+  margin: 0;
+  color: #66736b;
+  font-size: 11px;
+}
+.reason-modal.reason-modal-responsive .reason-form-footer .button-full { width: 100%; }
+
 .staff-match-players > span { min-width: 0; flex-wrap: wrap; align-content: center; gap: 5px; }
 .staff-match-players > span b { color: var(--green); font-family: var(--mono); font-size: 8px; text-transform: uppercase; }
 .winner-side-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 16px; }
@@ -948,7 +1028,7 @@
 .return-player-section-label { margin: 4px 0 -5px; color: #5d6b62; font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: .08em; }
 
 .finish-modal { display: flex; flex-direction: column; }
-.finish-modal > .eyebrow { max-width: calc(100% - 42px); overflow-wrap: anywhere; line-height: 1.4; }
+.finish-modal .finish-modal-heading .eyebrow { max-width: 100%; overflow-wrap: anywhere; line-height: 1.4; }
 .finish-modal .return-player-list { max-height: min(27dvh, 200px); overflow-y: auto; overscroll-behavior: contain; }
 .finish-modal > .button-full { position: sticky; bottom: 0; z-index: 2; flex: 0 0 auto; margin-top: 8px; box-shadow: 0 -10px 16px var(--paper); }
 
@@ -976,6 +1056,150 @@
 @media (max-width: 380px) {
   .winner-side-options { gap: 6px; }
   .winner-side-option { padding: 9px 7px; }
+}
+
+/* Keep the session setup form comfortable in the shared dialog at every viewport size. */
+.create-session-dialog { max-height: min(90dvh, 760px); }
+.create-session-dialog .create-session-card {
+  min-width: 0;
+  padding: clamp(20px, 4vw, 30px);
+}
+.create-session-dialog .create-session-heading {
+  min-width: 0;
+  gap: 12px;
+}
+.create-session-dialog .create-session-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+.create-session-dialog .create-session-heading .modal-close {
+  position: static;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  margin: 0;
+  padding: 0;
+}
+.create-session-dialog .create-session-heading h2 {
+  margin: 8px 0 6px;
+  font-size: clamp(32px, 5vw, 40px);
+  line-height: .95;
+  overflow-wrap: anywhere;
+}
+.create-session-dialog .create-session-heading p {
+  max-width: 42ch;
+  margin: 0 0 18px;
+  color: #66736b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.create-session-dialog .create-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px 18px;
+}
+.create-session-dialog .create-fields label {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+  color: #40554a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.create-session-dialog .create-fields input,
+.create-session-dialog .create-fields select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0 12px;
+  border-color: #bdc8bc;
+  border-radius: 5px;
+  font-size: 14px;
+}
+.create-session-dialog .create-session-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  min-width: 0;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #d8ddd3;
+}
+.create-session-dialog .create-session-actions > span {
+  min-width: 0;
+  color: #66736b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.create-session-dialog .create-session-actions .button { width: auto; flex: 0 0 auto; min-height: 48px; }
+
+.session-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.session-toolbar-actions > .button { min-height: 50px; border-radius: 4px; }
+.session-delete-button { gap: 8px; background: #a53c2c; box-shadow: 0 4px 0 #782d23; }
+.session-delete-button:hover:not(:disabled) { background: #8f3024; box-shadow: 0 6px 0 #782d23; }
+.sessions-empty-state { display: grid; justify-items: center; gap: 12px; margin: 46px auto; padding: clamp(28px, 5vw, 54px) 22px; border: 1px solid #d8dfd4; background: var(--paper); text-align: center; }
+.sessions-empty-state h2 { margin: 0; color: var(--ink); font-family: var(--display); font-size: clamp(28px, 4vw, 38px); line-height: 1; text-transform: uppercase; }
+.sessions-empty-state p { max-width: 38ch; margin: 0 0 6px; color: #66736b; font-size: 13px; line-height: 1.5; }
+.delete-session-dialog { max-height: min(90dvh, 720px); }
+.delete-session-content { position: relative; width: 100%; padding: clamp(24px, 4vw, 34px); background: var(--paper); }
+.delete-session-content .modal-close { position: absolute; right: 15px; top: 15px; }
+.delete-session-icon { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 17px; color: #9b392b; background: #fae7df; }
+.delete-session-content > .eyebrow { margin-bottom: 9px; color: #9b392b; }
+.delete-session-content h2 { max-width: calc(100% - 20px); margin: 0 0 12px; color: var(--ink); font-family: var(--display); font-size: clamp(28px, 5vw, 36px); line-height: .98; overflow-wrap: anywhere; text-transform: uppercase; }
+.delete-session-warning { margin: 0 0 17px; color: #58685e; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.delete-session-blocked { margin: 0 0 17px; padding: 11px 12px; border: 1px solid #e5b8ac; color: #8d3025; background: #fff1ec; font-size: 12px; line-height: 1.45; }
+.delete-session-label { display: block; margin-bottom: 7px; color: #40554a; font-size: 12px; line-height: 1.45; }
+.delete-session-label strong { color: var(--ink); overflow-wrap: anywhere; }
+.delete-session-input { display: block; width: 100%; min-width: 0; min-height: 48px; padding: 0 12px; border: 1px solid #bdc8bc; border-radius: 4px; background: #fff; color: var(--ink); font-size: 14px; }
+.delete-session-input:focus-visible { outline: 2px solid #6b9279; outline-offset: 1px; }
+.delete-session-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.delete-session-actions > .button { min-height: 44px; }
+
+@media (max-width: 480px) {
+  .session-toolbar-actions { width: 100%; }
+  .session-toolbar-actions > .button { min-width: 0; flex: 1; }
+  .delete-session-content { padding: 24px 20px calc(22px + env(safe-area-inset-bottom)); }
+  .delete-session-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .delete-session-actions > .button { min-width: 0; padding-inline: 10px; }
+}
+
+@media (max-width: 760px) {
+  .create-session-dialog { max-height: min(92dvh, 900px); }
+  .create-session-dialog .create-session-card {
+    padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .create-session-dialog .create-session-card {
+    padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .create-session-dialog .create-fields { grid-template-columns: minmax(0, 1fr); }
+  .create-session-dialog .create-session-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .create-session-dialog .create-session-actions .button {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.3;
+    text-align: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .create-session-dialog .create-session-card {
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .create-session-dialog .create-fields { gap: 13px; }
 }
 
 /* Keep the start time and finish action on shared alignment rails at every width. */

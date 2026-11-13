@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { IsIn, IsInt, IsString, Length, Max, Min } from 'class-validator';
 import type { CreateSessionRequest, QueueSnapshot } from '@court-flow/contracts';
 import { AuthService } from '../auth/auth.service';
@@ -56,5 +56,15 @@ export class SessionsController {
   ) {
     this.auth.requireStaff(header);
     return this.sessions.getStaffSnapshot(sessionId);
+  }
+
+  @Delete('staff/sessions/:sessionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteSession(
+    @Param('sessionId') sessionId: string,
+    @Headers('authorization') header?: string,
+  ) {
+    this.auth.requireStaff(header);
+    return this.sessions.deleteSession(sessionId);
   }
 }

@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
-import { ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LogOut, Plus, Radio, ShieldCheck, UsersRound, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, ChevronDown, Crown, Flag, LoaderCircle, LogOut, Plus, Radio, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react';
 import { getStaffToken } from '../../shared/api/client';
 import { staffApi as api } from './api';
 import type { Court, MatchSide, StaffMatchView, StaffQueueEntry, StaffSessionListItem, StaffSnapshot } from '@court-flow/contracts';
@@ -31,6 +31,7 @@ export function StaffPage() {
   const [reasonError, setReasonError] = useState('');
   const [matchError, setMatchError] = useState('');
   const [sessions, setSessions] = useState<StaffSessionListItem[]>([]);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [snapshot, setSnapshot] = useState<StaffSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,9 @@ export function StaffPage() {
   const [winningSide, setWinningSide] = useState<MatchSide | null>(null);
   const [copied, setCopied] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<Court | null>(null);
+  const [showDeleteSession, setShowDeleteSession] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const toast = useToast();
 
   async function loadSessions(currentToken: string) {
@@ -58,9 +62,11 @@ export function StaffPage() {
       setSelectedId((current) => current && next.some((session) => session.id === current) ? current : next[0]?.id ?? '');
       setError('');
     } catch (err) {
-      localStorage.removeItem('courtflow:staff-token');
+      sessionStorage.removeItem('courtflow:staff-token');
       setToken(undefined);
       setError(err instanceof Error ? err.message : 'Could not load staff sessions.');
+    } finally {
+      setSessionsLoaded(true);
     }
   }
 
@@ -106,7 +112,7 @@ export function StaffPage() {
     try {
       setBusy(true);
       const result = await api.login(pin);
-      localStorage.setItem('courtflow:staff-token', result.token);
+      sessionStorage.setItem('courtflow:staff-token', result.token);
       setToken(result.token);
       setPin('');
       setError('');
@@ -131,6 +137,27 @@ export function StaffPage() {
       await loadSessions(token);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Could not create the session.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSelectedSession() {
+    const session = snapshot?.session;
+    if (!token || !session || deleteConfirmation !== session.name || activeMatches.length > 0) return;
+    setBusy(true);
+    setDeleteError('');
+    try {
+      await api.deleteSession(token, session.id);
+      setShowDeleteSession(false);
+      setDeleteConfirmation('');
+      setSnapshot(null);
+      setSelectedId('');
+      setSessionsLoaded(false);
+      toast.success(`${session.name} deleted.`);
+      await loadSessions(token);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this session.');
     } finally {
       setBusy(false);
     }
@@ -262,8 +289,8 @@ export function StaffPage() {
           <h1>Welcome back,<br />court captain.</h1>
           <form onSubmit={login}>
             <label htmlFor="staff-pin">Staff PIN</label>
-            <input id="staff-pin" type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter your PIN" required />
-            <Button className={cx('button-full', staffStyles, sharedStyles)} disabled={busy || pin.length < 4}>
+            <input id="staff-pin" type="password" inputMode="numeric" autoComplete="current-password" maxLength={12} value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter your PIN" required />
+            <Button className={cx('button-full', staffStyles, sharedStyles)} disabled={busy || pin.length < 8}>
               {busy ? <LoaderCircle className={cx('spin', staffStyles, sharedStyles)} size={17} /> : <>Open dashboard <ArrowRight size={17} /></>}
             </Button>
           </form>
@@ -290,7 +317,7 @@ export function StaffPage() {
             size="sm"
             className={cx("signout-button", staffStyles, sharedStyles)}
             onClick={() => {
-              localStorage.removeItem('courtflow:staff-token');
+              sessionStorage.removeItem('courtflow:staff-token');
               setToken(undefined);
             }}
           >
@@ -307,7 +334,8 @@ export function StaffPage() {
           <div className={cx("session-picker", staffStyles, sharedStyles)}>
             <label htmlFor="session-select">ACTIVE SESSION</label>
             <div className={cx("select-wrap", staffStyles, sharedStyles)}>
-              <select id="session-select" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+              <select id="session-select" value={selectedId} disabled={sessions.length === 0} onChange={(event) => setSelectedId(event.target.value)}>
+                {sessions.length === 0 && <option value="">No sessions yet</option>}
                 {sessions.map((session) => (
                   <option key={session.id} value={session.id}>{session.name} · {session.publicCode}</option>
                 ))}
@@ -315,9 +343,12 @@ export function StaffPage() {
               <ChevronDown size={17} aria-hidden="true" />
             </div>
           </div>
-          <Button className={cx('session-create-button', staffStyles, sharedStyles)} onClick={() => { setCreateError(''); setShowCreate(true); }}><Plus size={17} aria-hidden="true" /> New session</Button>
+          <div className={cx('session-toolbar-actions', staffStyles)}>
+            {snapshot && <Button className={cx('session-create-button session-delete-button', staffStyles, sharedStyles)} onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setShowDeleteSession(true); }} disabled={busy}><Trash2 size={17} aria-hidden="true" /> Delete session</Button>}
+            <Button className={cx('session-create-button', staffStyles, sharedStyles)} onClick={() => { setCreateError(''); setShowCreate(true); }}><Plus size={17} aria-hidden="true" /> New session</Button>
+          </div>
         </div>
-        {loading && !snapshot ? <LoadingCard label="Loading venue controls…" /> : snapshot ? <>
+        {!sessionsLoaded || (loading && !snapshot) || (!snapshot && Boolean(selectedId) && !error) ? <LoadingCard label={!sessionsLoaded ? 'Loading sessions…' : 'Loading venue controls…'} /> : snapshot ? <>
           <div className={cx("staff-metrics-grid", staffStyles, sharedStyles)}><MetricCard label="WAITING" value={snapshot.waitingCount} detail="players in line" icon={<UsersRound size={18} />} color="lime" /><MetricCard label="COURTS OPEN" value={availableCourts.length} detail={`of ${snapshot.courts.length} courts`} icon={<Flag size={18} />} color="blue" /><MetricCard label="GAME SIZE" value={snapshot.session.playersPerGame} detail="players per game" icon={<Crown size={18} />} color="peach" /><MetricCard label="SESSION STATUS" value={snapshot.session.state === 'open' ? 'LIVE' : 'CLOSED'} detail={snapshot.session.sport} icon={<Radio size={18} />} color="green" /></div>
           <div className={cx("staff-dashboard-grid", staffStyles, sharedStyles)}>
             <section className={cx("staff-main-column", staffStyles, sharedStyles)}>
@@ -362,7 +393,14 @@ export function StaffPage() {
               <div className={cx("fairness-reminder", staffStyles, sharedStyles)}><div><ShieldCheck size={19} /></div><p><strong>Keep it fair.</strong><br />When you skip or move a player, include a clear reason. Everyone can see the record.</p></div>
             </aside>
           </div>
-        </> : <ErrorPanel error="No session selected yet." onRetry={() => token && void loadSessions(token)} />}
+        </> : sessions.length === 0 ? (
+          <section className={cx('sessions-empty-state', staffStyles)}>
+            <div className={cx('eyebrow', staffStyles, sharedStyles)}>VENUE CONTROL</div>
+            <h2>No sessions yet</h2>
+            <p>Create a session to open a queue and start managing your courts.</p>
+            <Button onClick={() => { setCreateError(''); setShowCreate(true); }}><Plus size={17} /> Start a session</Button>
+          </section>
+        ) : <ErrorPanel error={error || 'Could not open the selected session.'} onRetry={() => token && void loadSnapshot()} />}
       </PageContainer>
       <SiteFooter rightContent={<RealtimeStatus connected={realtimeConnected} />} />
       {pendingRemoval && (
@@ -378,6 +416,43 @@ export function StaffPage() {
               <Button type="button" variant="danger" onClick={confirmRemoveCourt} disabled={busy}>Remove court</Button>
             </div>
           </div>
+        </Dialog>
+      )}
+      {showDeleteSession && snapshot && (
+        <Dialog
+          title={`Delete ${snapshot.session.name}?`}
+          size="sm"
+          className={cx('delete-session-dialog', staffStyles)}
+          onClose={() => { if (!busy) { setShowDeleteSession(false); setDeleteError(''); } }}
+        >
+          <form className={cx('delete-session-content', staffStyles)} onSubmit={(event) => { event.preventDefault(); void deleteSelectedSession(); }}>
+            <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => { setShowDeleteSession(false); setDeleteError(''); }} disabled={busy}><X size={18} /></Button>
+            <div className={cx('delete-session-icon', staffStyles)}><AlertTriangle size={20} /></div>
+            <div className={cx('eyebrow', staffStyles, sharedStyles)}>PERMANENT DELETION</div>
+            <h2>Delete “{snapshot.session.name}”?</h2>
+            <p className={cx('delete-session-warning', staffStyles)}>
+              This permanently removes the session, its join link ({snapshot.session.publicCode}), waiting players, match results, and activity history.
+              {snapshot.waitingCount > 0 && ` ${snapshot.waitingCount} waiting ${snapshot.waitingCount === 1 ? 'player will' : 'players will'} lose ${snapshot.waitingCount === 1 ? 'their place' : 'their places'}.`}
+            </p>
+            {activeMatches.length > 0 && <div className={cx('delete-session-blocked', staffStyles)} role="alert">Finish the {activeMatches.length === 1 ? 'active match' : `${activeMatches.length} active matches`} before deleting this session.</div>}
+            <label htmlFor="delete-session-confirmation" className={cx('delete-session-label', staffStyles)}>Type <strong>{snapshot.session.name}</strong> exactly to confirm</label>
+            <input
+              id="delete-session-confirmation"
+              className={cx('delete-session-input', staffStyles)}
+              value={deleteConfirmation}
+              onChange={(event) => { setDeleteConfirmation(event.target.value); setDeleteError(''); }}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+            />
+            {deleteError && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{deleteError}</div>}
+            <div className={cx('delete-session-actions', staffStyles)}>
+              <Button type="button" variant="quiet" onClick={() => { setShowDeleteSession(false); setDeleteError(''); }} disabled={busy}>Cancel</Button>
+              <Button type="submit" variant="danger" disabled={busy || deleteConfirmation !== snapshot.session.name || activeMatches.length > 0}>
+                {busy ? <LoaderCircle className={cx('spin', sharedStyles)} size={16} /> : <Trash2 size={16} />} Delete session
+              </Button>
+            </div>
+          </form>
         </Dialog>
       )}
       {showCopyLink && snapshot && (
@@ -400,10 +475,14 @@ export function StaffPage() {
         </Dialog>
       )}
       {showCreate && (
-        <Dialog title="Start a session" size="md" onClose={() => { if (!busy) setShowCreate(false); }}>
+        <Dialog title="Start a session" size="md" className={cx('create-session-dialog', staffStyles)} onClose={() => { if (!busy) setShowCreate(false); }}>
           <form className={cx('create-session-card', staffStyles, sharedStyles)} onSubmit={createSession}>
             <div className={cx('create-session-heading', staffStyles, sharedStyles)}>
-              <div><div className={cx('eyebrow', staffStyles, sharedStyles)}>SET UP OPEN PLAY</div><h2>Start a session</h2></div>
+              <div>
+                <div className={cx('eyebrow', staffStyles, sharedStyles)}>SET UP OPEN PLAY</div>
+                <h2>Start a session</h2>
+                <p>Choose the sport, court count, and players per game.</p>
+              </div>
               <Button type="button" variant="quiet" size="sm" className={cx('modal-close', staffStyles, sharedStyles)} aria-label="Close" onClick={() => setShowCreate(false)} disabled={busy}><X size={18} /></Button>
             </div>
             <div className={cx('create-fields', staffStyles, sharedStyles)}>
@@ -412,8 +491,8 @@ export function StaffPage() {
               <label>Courts<input type="number" min={1} max={16} value={courtCount} onChange={(event) => setCourtCount(Number(event.target.value))} /></label>
               <label>Players per game<select value={gameSize} onChange={(event) => setGameSize(Number(event.target.value) as 2 | 4)}><option value={2}>2 players</option><option value={4}>4 players</option></select></label>
             </div>
-            <div className={cx('create-session-actions', staffStyles, sharedStyles)}><span>Creates a fresh, shareable queue code.</span><Button disabled={busy}>Create session <ArrowRight size={16} /></Button></div>
             {createError && <div className={cx('inline-error', staffStyles, sharedStyles)} role="alert">{createError}</div>}
+            <div className={cx('create-session-actions', staffStyles, sharedStyles)}><span>Creates a fresh, shareable queue code.</span><Button disabled={busy}>Create session <ArrowRight size={16} /></Button></div>
           </form>
         </Dialog>
       )}

@@ -13,8 +13,15 @@ export type TokenClaims = {
 
 @Injectable()
 export class AuthService {
-  private readonly secret =
-    process.env.SESSION_SECRET ?? 'court-flow-local-development-secret-change-me';
+  private readonly secret: string;
+
+  constructor() {
+    const secret = process.env.SESSION_SECRET?.trim();
+    if (!secret || secret.length < 32) {
+      throw new Error('SESSION_SECRET must be configured with at least 32 characters before starting the API');
+    }
+    this.secret = secret;
+  }
 
   issueStaffToken(): string {
     return this.issue({ role: 'staff', exp: Date.now() + 12 * 60 * 60 * 1000 });
@@ -30,7 +37,7 @@ export class AuthService {
   }
 
   verifyHeader(header?: string): TokenClaims | null {
-    if (!header?.startsWith('Bearer ')) return null;
+    if (!header?.startsWith('Bearer ') || header.length > 8_200) return null;
     try {
       return this.verify(header.slice(7));
     } catch {
@@ -67,15 +74,36 @@ export class AuthService {
   }
 
   private verify(token: string): TokenClaims {
+    if (token.length > 8_192) throw new UnauthorizedException('Invalid token');
     const [payload, signature, extra] = token.split('.');
-    if (!payload || !signature || extra) throw new UnauthorizedException('Invalid token');
+    if (
+      !payload ||
+      payload.length > 4_096 ||
+      !/^[A-Za-z0-9_-]+$/.test(payload) ||
+      !signature ||
+      !/^[A-Za-z0-9_-]{43}$/.test(signature) ||
+      extra
+    ) {
+      throw new UnauthorizedException('Invalid token');
+    }
     const expected = createHmac('sha256', this.secret).update(payload).digest();
     const actual = Buffer.from(signature, 'base64url');
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
       throw new UnauthorizedException('Invalid token');
     }
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString()) as TokenClaims;
-    if (!claims.exp || claims.exp < Date.now()) throw new UnauthorizedException('Session expired');
+    if (
+      !claims ||
+      typeof claims !== 'object' ||
+      !Number.isSafeInteger(claims.exp) ||
+      claims.exp <= Date.now() ||
+      !['staff', 'player'].includes(claims.role)
+    ) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    if (claims.role === 'player' && (typeof claims.sessionId !== 'string' || typeof claims.playerId !== 'string')) {
+      throw new UnauthorizedException('Invalid token');
+    }
     return claims;
   }
 }

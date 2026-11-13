@@ -29,6 +29,9 @@ export const staffApi = {
   snapshot(token: string, id: string) {
     return request<StaffSnapshot>(`/api/staff/sessions/${id}`, {}, token);
   },
+  deleteSession(token: string, sessionId: string) {
+    return request<void>(`/api/staff/sessions/${sessionId}`, { method: 'DELETE' }, token);
+  },
   addCourt(token: string, sessionId: string, input: CreateCourtRequest) {
     return request<StaffSnapshot>(`/api/staff/sessions/${sessionId}/courts`, {
       method: 'POST',

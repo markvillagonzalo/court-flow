@@ -3,15 +3,35 @@ import './env';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { createHttpSecurityMiddleware, isAllowedWebOrigin } from './security/http-security';
+import { readRuntimeSecurityConfig } from './security/security-config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: { origin: true } });
+  const security = readRuntimeSecurityConfig();
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(require('express').json({ limit: '16kb' }));
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.disable('x-powered-by');
+  expressApp.set('trust proxy', security.trustedProxyHops);
+  app.use(createHttpSecurityMiddleware());
+  app.enableCors({
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => callback(null, isAllowedWebOrigin(origin, security.webOrigins)),
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+    maxAge: 600,
+  });
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
 
-  const port = Number(process.env.API_PORT ?? 3001);
-  await app.listen(port, '0.0.0.0');
-  console.log(`CourtFlow API listening on http://localhost:${port}/api`);
+  await app.listen(security.apiPort, security.apiHost);
+  console.log(`CourtFlow API listening on http://${security.apiHost}:${security.apiPort}/api`);
 }
 
 void bootstrap();

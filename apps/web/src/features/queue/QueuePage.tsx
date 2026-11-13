@@ -37,6 +37,7 @@ export function QueuePage() {
       setSnapshot(next);
       setError('');
     } catch (err) {
+      if (err instanceof Error && err.message === 'Queue session not found') setSnapshot(null);
       setError(err instanceof Error ? err.message : 'Could not load this queue.');
     } finally {
       setLoading(false);
@@ -69,7 +70,7 @@ export function QueuePage() {
     try {
       const result = await api.withdraw(token);
       if (result.status === 'left') {
-        localStorage.removeItem(`courtflow:player:${code}`);
+        sessionStorage.removeItem(`courtflow:player:${code}`);
         toast.success('You left the queue.');
       } else {
         toast.success('You will leave after this game.');

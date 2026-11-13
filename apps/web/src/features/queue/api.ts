@@ -11,7 +11,7 @@ export const queueApi = {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    localStorage.setItem(`courtflow:player:${code}`, result.token);
+    sessionStorage.setItem(`courtflow:player:${code}`, result.token);
     return result;
   },
   withdraw(token: string) {
